@@ -12,6 +12,14 @@ import org.apache.spark.rdd.RDD
 import spire.syntax.cfor._
 
 object TinToDem {
+  def time[T](msg: String)(f: => T) = {
+    val start = System.currentTimeMillis
+    val v = f
+    val end = System.currentTimeMillis
+    println(s"[TIMING] $msg: ${java.text.NumberFormat.getIntegerInstance.format(end - start)} ms")
+    v
+  }
+
   case class Options(
     cellType: CellType = DoubleConstantNoDataCellType,
     boundsBuffer: Option[Double] = None
@@ -102,15 +110,15 @@ object TinToDem {
     val triangulations: RDD[(SpatialKey, DelaunayTriangulation)] =
       rdd
         .mapValues { points =>
-          DelaunayTriangulation(points)
+          time("TinToDem::withStitch::113") { DelaunayTriangulation(points) }
         }
 
     val borders: RDD[(SpatialKey, BoundaryDelaunay)] =
       triangulations
         .mapPartitions{ iter =>
-          iter.map{ case (sk, dt) => {
+          iter.map{ case (sk, dt) => time("TinToDem::withStitch::119") {
             val ex: Extent = layoutDefinition.mapTransform(sk)
-            (sk, new BoundaryDelaunay(dt, ex))
+            (sk, time("TinToDem::withStitch::121") { new BoundaryDelaunay(dt, ex) })
           }
           }}
 
@@ -118,30 +126,34 @@ object TinToDem {
       .collectNeighbors
       .mapPartitions({ partition =>
         partition.map { case (key, neighbors) =>
-          val newNeighbors =
-            neighbors.map { case (direction, (key2, border)) =>
-              val ex = layoutDefinition.mapTransform(key2)
-              (direction, (border, ex))
-            }
-          (key, newNeighbors.toMap)
+          time("TinToDem::withStitch::129") {
+            val newNeighbors =
+              neighbors.map { case (direction, (key2, border)) =>
+                val ex = layoutDefinition.mapTransform(key2)
+                (direction, (border, ex))
+              }
+            (key, newNeighbors.toMap)
+          }
         }
       }, preservesPartitioning = true)
       .join(triangulations)
       .mapPartitions({ partition =>
         partition.map { case (key, (borders, triangulation)) => // : (Map[Direction, (BoundaryDelaunay, Extent)], DelaunayTriangulation)
-          val stitched = StitchedDelaunay(borders)
+          time("TinToDem::withStitch::142") {
+            val stitched = time("TinToDem::withStitch::143") { StitchedDelaunay(borders) }
 
-          val extent = layoutDefinition.mapTransform(key)
-          val re =
-            RasterExtent(
-              extent,
-              layoutDefinition.tileCols,
-              layoutDefinition.tileRows
-            )
+            val extent = layoutDefinition.mapTransform(key)
+            val re =
+              RasterExtent(
+                extent,
+                layoutDefinition.tileCols,
+                layoutDefinition.tileRows
+              )
 
-          val tile = stitched.rasterize(re, options.cellType)(triangulation)
+            val tile = time("TinToDem::withStitch::153") { stitched.rasterize(re, options.cellType)(triangulation) }
 
-          (key, tile)
+            (key, tile)
+          }
         }
       }, preservesPartitioning = true)
   }

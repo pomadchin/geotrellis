@@ -11,6 +11,8 @@ case class BoundaryDelaunay (dt: DelaunayTriangulation, boundingExtent: Extent) 
   type ResultEdge = Int
   type Vertex = Int
 
+  println(s"BoundaryDelaunay::3 * ${dt.verts.length} - 6: ${3 * dt.verts.length - 6}")
+
   val verts = collection.mutable.Map[Vertex, Coordinate]()
   val navigator = new HalfEdgeTable(3 * dt.verts.length - 6)  // Allocate for half as many edges as would be expected
 

@@ -31,30 +31,37 @@ import scala.collection.mutable.ArrayBuffer
 import Direction._
 
 object CollectNeighbors {
+  def time[T](msg: String)(f: => T) = {
+    val start = System.currentTimeMillis
+    val v = f
+    val end = System.currentTimeMillis
+    println(s"[TIMING] $msg: ${java.text.NumberFormat.getIntegerInstance.format(end - start)} ms")
+    v
+  }
 
   /** Collects the neighbors of each value (including itself) into a Map
     * giving the direction of the neighbor.
     */
-  def apply[K: SpatialComponent: ClassTag, V](rdd: RDD[(K, V)]): RDD[(K, Iterable[(Direction, (K, V))])] = {
+  def apply[K: SpatialComponent: ClassTag, V](rdd: RDD[(K, V)]): RDD[(K, Iterable[(Direction, (K, V))])] = time("CollectNeighbors::apply::45") { println("CollectNeighbors::println::45")
     val neighbored: RDD[(K, (Direction, (K, V)))] =
       rdd
-        .flatMap { case (key, value) =>
+        .flatMap { case (key, value) => time("CollectNeighbors::apply::48") {
           val SpatialKey(col, row) = key
 
           Seq(
             (key, (Center, (key, value))),
 
-            (key.setComponent(SpatialKey(col-1, row)), (Right, (key, value))),
-            (key.setComponent(SpatialKey(col+1, row)), (Left, (key, value))),
-            (key.setComponent(SpatialKey(col, row-1)), (Bottom, (key, value))),
-            (key.setComponent(SpatialKey(col, row+1)), (Top, (key, value))),
+            (key.setComponent(SpatialKey(col - 1, row)), (Right, (key, value))),
+            (key.setComponent(SpatialKey(col + 1, row)), (Left, (key, value))),
+            (key.setComponent(SpatialKey(col, row - 1)), (Bottom, (key, value))),
+            (key.setComponent(SpatialKey(col, row + 1)), (Top, (key, value))),
 
-            (key.setComponent(SpatialKey(col-1, row-1)), (BottomRight, (key, value))),
-            (key.setComponent(SpatialKey(col+1, row-1)), (BottomLeft, (key, value))),
-            (key.setComponent(SpatialKey(col-1, row+1)), (TopRight, (key, value))),
-            (key.setComponent(SpatialKey(col+1, row+1)), (TopLeft, (key, value)))
+            (key.setComponent(SpatialKey(col - 1, row - 1)), (BottomRight, (key, value))),
+            (key.setComponent(SpatialKey(col + 1, row - 1)), (BottomLeft, (key, value))),
+            (key.setComponent(SpatialKey(col - 1, row + 1)), (TopRight, (key, value))),
+            (key.setComponent(SpatialKey(col + 1, row + 1)), (TopLeft, (key, value)))
           )
-        }
+        } }
 
     val grouped: RDD[(K, Iterable[(Direction, (K, V))])] =
       rdd.partitioner match {
@@ -63,11 +70,11 @@ object CollectNeighbors {
       }
 
     grouped
-      .filter { case (_, values) =>
+      .filter { case (_, values) => time("CollectNeighbors::apply::73") {
         values.find {
           case (Center, _) => true
           case _ => false
         }.isDefined
-      }
+      } }
   }
 }

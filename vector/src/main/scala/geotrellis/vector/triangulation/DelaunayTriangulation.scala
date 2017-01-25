@@ -131,6 +131,7 @@ case class DelaunayTriangulation(verts: DelaunayPointSet, navigator: HalfEdgeTab
 
 object DelaunayTriangulation {
   def apply(verts: DelaunayPointSet, debug: Boolean = false) = {
+    println(s"DelaunayTriangulation::2*(3*${verts.length} - 6): ${2*(3*verts.length - 6)}")
     new DelaunayTriangulation(verts, new HalfEdgeTable(2*(3*verts.length - 6)), debug)
   }
 }

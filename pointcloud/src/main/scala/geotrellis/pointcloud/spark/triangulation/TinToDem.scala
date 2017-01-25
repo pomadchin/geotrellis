@@ -122,6 +122,14 @@ object TinToDem {
           }
           }}
 
+
+    /*.collectNeighbors.mapPartitions({ partition =>
+        partition.map { case (key, neighbors) =>
+          (key, neighbors.filter { case (d, _) => d == Center }.asInstanceOf[Tile])
+        }
+       })*/
+
+
     borders
       .collectNeighbors
       .mapPartitions({ partition =>

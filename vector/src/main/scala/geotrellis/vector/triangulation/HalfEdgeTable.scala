@@ -16,7 +16,7 @@ class HalfEdgeTable(_size: Int) {
   private var edgeCount = 0
 
   // This array will hold the packed arrays of the halfedge table.
-  private var table = Array.ofDim[Int](size * 3)
+  private var table = { println(s"HalfEdgeTable::19::(${size} * 3): ${size * 3}"); Array.ofDim[Int](size * 3) }
 
   // Since the underlying implementation uses an array we can only
   // store so many unique values. 1<<30 is the largest power of two

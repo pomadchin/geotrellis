@@ -63,7 +63,7 @@ object Dependencies {
 
   val slickPG      = "com.github.tminglei" %% "slick-pg" % "0.14.4"
 
-  val pdal         = "io.pdal" %% "pdal" % "1.4.0"
+  val pdalScala    = "io.pdal" %% "pdal-scala" % "1.4.0-SNAPSHOT"
 
   val parserCombinators = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5"
 }

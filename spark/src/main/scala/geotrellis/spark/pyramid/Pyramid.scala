@@ -33,7 +33,8 @@ import scala.reflect.ClassTag
 object Pyramid extends LazyLogging {
   case class Options(
     resampleMethod: ResampleMethod = NearestNeighbor,
-    partitioner: Option[Partitioner] = None
+    partitioner: Option[Partitioner] = None,
+    fullPyramid: Boolean = true
   )
   object Options {
     def DEFAULT = Options()
@@ -51,55 +52,70 @@ object Pyramid extends LazyLogging {
     zoom: Int,
     options: Options
   ): (Int, RDD[(K, V)] with Metadata[M]) = {
-    val Options(resampleMethod, partitioner) = options
-
+    val Options(resampleMethod, partitioner, fullPyramid) = options
     val sourceLayout = rdd.metadata.getComponent[LayoutDefinition]
     val sourceBounds = rdd.metadata.getComponent[Bounds[K]]
+
+    if(fullPyramid && ((sourceLayout.tileLayout.layoutCols / math.pow(2, zoom)).toInt < 1 || (sourceLayout.tileLayout.layoutRows / math.pow(2, zoom)).toInt < 1))
+      sys.error(s"Not enough tiles to build complete pyramid (from $zoom to 0), " +
+                "consider layout scheme change or Pyramid.Options.fullPyramid = false usage.")
+    else
+      logger.info("Pyramid.Options.fullPyramid = true")
+
     val LayoutLevel(nextZoom, nextLayout) = layoutScheme.zoomOut(LayoutLevel(zoom, sourceLayout))
 
-    val nextKeyBounds =
-      sourceBounds match {
-        case EmptyBounds => EmptyBounds
-        case kb: KeyBounds[K] =>
-          // If we treat previous layout as extent and next layout as tile layout we are able to hijack MapKeyTransform
-          // to translate the spatial component of source KeyBounds to next KeyBounds
-          val extent = sourceLayout.extent
-          val sourceRe = RasterExtent(extent, sourceLayout.layoutCols, sourceLayout.layoutRows)
-          val targetRe = RasterExtent(extent, nextLayout.layoutCols, nextLayout.layoutRows)
-          val SpatialKey(sourceColMin, sourceRowMin) = kb.minKey.getComponent[SpatialKey]
-          val SpatialKey(sourceColMax, sourceRowMax) = kb.maxKey.getComponent[SpatialKey]
-          val (colMin, rowMin) = {
-            val (x, y) = sourceRe.gridToMap(sourceColMin, sourceRowMin)
-            targetRe.mapToGrid(x, y)
-          }
+    logger.info(s"Next zoom level: $nextZoom")
+    logger.info(s"Next zoom (cols, rows): ${(nextLayout.tileLayout.layoutCols / 2, nextLayout.tileLayout.layoutRows / 2)}")
 
-          val (colMax, rowMax) = {
-            val (x, y) = sourceRe.gridToMap(sourceColMax, sourceRowMax)
-            targetRe.mapToGrid(x, y)
-          }
+    if(nextLayout.tileLayout.layoutCols / 2 < 1 || nextLayout.tileLayout.layoutRows / 2 < 1) {
+      logger.info(s"Reached min zoom level: $zoom")
+      zoom -> rdd
+    } else {
+      val nextKeyBounds =
+        sourceBounds match {
+          case EmptyBounds => EmptyBounds
+          case kb: KeyBounds[K] =>
+            // If we treat previous layout as extent and next layout as tile layout we are able to hijack MapKeyTransform
+            // to translate the spatial component of source KeyBounds to next KeyBounds
+            val extent = sourceLayout.extent
+            val sourceRe = RasterExtent(extent, sourceLayout.layoutCols, sourceLayout.layoutRows)
+            val targetRe = RasterExtent(extent, nextLayout.layoutCols, nextLayout.layoutRows)
+            val SpatialKey(sourceColMin, sourceRowMin) = kb.minKey.getComponent[SpatialKey]
+            val SpatialKey(sourceColMax, sourceRowMax) = kb.maxKey.getComponent[SpatialKey]
+            val (colMin, rowMin) = {
+              val (x, y) = sourceRe.gridToMap(sourceColMin, sourceRowMin)
+              targetRe.mapToGrid(x, y)
+            }
 
-          KeyBounds(
-            kb.minKey.setComponent(SpatialKey(colMin, rowMin)),
-            kb.maxKey.setComponent(SpatialKey(colMax, rowMax)))
-      }
+            val (colMax, rowMax) = {
+              val (x, y) = sourceRe.gridToMap(sourceColMax, sourceRowMax)
+              targetRe.mapToGrid(x, y)
+            }
 
-    val nextMetadata =
-      rdd.metadata
-        .setComponent(nextLayout)
-        .setComponent(nextKeyBounds)
-
-    // Functions for combine step
-    def createTiles(tile: (K, V)): Seq[(K, V)]                             = Seq(tile)
-    def mergeTiles1(tiles: Seq[(K, V)], tile: (K, V)): Seq[(K, V)]         = tiles :+ tile
-    def mergeTiles2(tiles1: Seq[(K, V)], tiles2: Seq[(K, V)]): Seq[(K, V)] = tiles1 ++ tiles2
-
-    val nextRdd = {
-     val transformedRdd = rdd
-        .map { case (key, tile) =>
-          val extent = sourceLayout.mapTransform(key)
-          val newSpatialKey = nextLayout.mapTransform(extent.center)
-          (key.setComponent(newSpatialKey), (key, tile))
+            KeyBounds(
+              kb.minKey.setComponent(SpatialKey(colMin, rowMin)),
+              kb.maxKey.setComponent(SpatialKey(colMax, rowMax)))
         }
+
+      val nextMetadata =
+        rdd.metadata
+          .setComponent(nextLayout)
+          .setComponent(nextKeyBounds)
+
+      // Functions for combine step
+      def createTiles(tile: (K, V)): Seq[(K, V)] = Seq(tile)
+
+      def mergeTiles1(tiles: Seq[(K, V)], tile: (K, V)): Seq[(K, V)] = tiles :+ tile
+
+      def mergeTiles2(tiles1: Seq[(K, V)], tiles2: Seq[(K, V)]): Seq[(K, V)] = tiles1 ++ tiles2
+
+      val nextRdd = {
+        val transformedRdd = rdd
+          .map { case (key, tile) =>
+            val extent = sourceLayout.mapTransform(key)
+            val newSpatialKey = nextLayout.mapTransform(extent.center)
+            (key.setComponent(newSpatialKey), (key, tile))
+          }
 
         partitioner
           .fold(transformedRdd.combineByKey(createTiles, mergeTiles1, mergeTiles2))(transformedRdd.combineByKey(createTiles _, mergeTiles1 _, mergeTiles2 _, _))
@@ -113,9 +129,10 @@ object Pyramid extends LazyLogging {
             }
             (newKey, newTile: V)
           }
-    }
+      }
 
-    nextZoom -> new ContextRDD(nextRdd, nextMetadata)
+      nextZoom -> new ContextRDD(nextRdd, nextMetadata)
+    }
   }
 
   def up[

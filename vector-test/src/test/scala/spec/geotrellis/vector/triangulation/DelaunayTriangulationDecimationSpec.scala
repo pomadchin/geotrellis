@@ -65,7 +65,7 @@ class DelaunayTriangulationDecimationSpec extends FunSpec with Matchers {
   describe("Delaunay Triangulation Decimation") {
     it("should triangulate and decimate [NOTE: should be moved into DelanayTriangulationSpec as probable data race was noticed]") {
 
-      val is = s3Client.getObject("geotrellis-test", "decimation-debug/pts194303.txt").getObjectContent
+      val is = s3Client.getObject("geotrellis-test", "decimation-debug/v3/pts92204.txt").getObjectContent
 
       val pts = scala.io.Source.fromInputStream(is)(Charset.forName("UTF-8")).getLines().toList.map { l =>
         val Array(x, y, z) = l.split(", ").map { d =>

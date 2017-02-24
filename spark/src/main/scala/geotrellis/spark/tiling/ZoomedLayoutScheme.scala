@@ -116,15 +116,23 @@ class ZoomedLayoutScheme(val crs: CRS, val tileSize: Int, resolutionThreshold: D
 
   def zoomOut(level: LayoutLevel) = {
     val layout = level.layout
+
+    if(layout.layoutCols < 2 || layout.layoutRows < 2)
+      sys.error(
+        s"Too small TileLayout (layoutCols == ${layout.layoutCols}, layoutRows == ${layout.layoutRows}). " +
+        "It is impossible to zoom out, try to use a correct layout to build desired pyramid or " +
+        s"consider pyramid build only up to ${level.zoom} zoom level."
+      )
+
     new LayoutLevel(
       zoom = level.zoom - 1,
       layout = LayoutDefinition(
         extent = layout.extent,
         tileLayout = TileLayout(
-          layout.tileLayout.layoutCols / 2,
-          layout.tileLayout.layoutRows / 2,
-          layout.tileLayout.tileCols,
-          layout.tileLayout.tileRows
+          layout.layoutCols / 2,
+          layout.layoutRows / 2,
+          layout.tileCols,
+          layout.tileRows
         )
       )
     )
@@ -137,10 +145,10 @@ class ZoomedLayoutScheme(val crs: CRS, val tileSize: Int, resolutionThreshold: D
       layout = LayoutDefinition(
         extent = layout.extent,
         tileLayout = TileLayout(
-          layout.tileLayout.layoutCols * 2,
-          layout.tileLayout.layoutRows * 2,
-          layout.tileLayout.tileCols,
-          layout.tileLayout.tileRows
+          layout.layoutCols * 2,
+          layout.layoutRows * 2,
+          layout.tileCols,
+          layout.tileRows
         )
       )
     )

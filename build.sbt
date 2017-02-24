@@ -114,7 +114,7 @@ lazy val vector = Project("vector", file("vector")).
   settings(commonSettings: _*)
 
 lazy val vectorTest = Project("vector-test", file("vector-test")).
-  dependsOn(vector, vectorTestkit).
+  dependsOn(vector, s3, vectorTestkit, s3Testkit).
   settings(commonSettings: _*)
 
 lazy val vectorTestkit = Project("vector-testkit", file("vector-testkit")).

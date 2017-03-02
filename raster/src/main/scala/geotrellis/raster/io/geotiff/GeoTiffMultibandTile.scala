@@ -215,13 +215,202 @@ abstract class GeoTiffMultibandTile(
   def bands: Vector[Tile] =
     (0 until bandCount).map(band(_)).toVector
 
+  def bandsNew: Vector[Tile] = {
+    val tiles = new Array[Tile](bandCount)
+
+    if (hasPixelInterleave) {
+      bandType match {
+        case BitBandType =>
+          println("here1")
+          val bands = Array.ofDim[Array[Byte]](bandCount, segmentCount)
+          val compressor = compression.createCompressor(segmentCount)
+          val decompressor = compressor.createDecompressor()
+
+          getSegments(0 until segmentCount).foreach { case (segmentIndex, segment) =>
+            val (cols, rows) =
+              if (segmentLayout.isTiled) (segmentLayout.tileLayout.tileCols, segmentLayout.tileLayout.tileRows)
+              else segmentLayout.getSegmentDimensions(segmentIndex)
+            val bytes = GeoTiffSegment.deinterleaveBitSegment(segment, cols, rows, bandCount)
+            cfor(0)(_ < bandCount, _ + 1) { i =>
+              bands(i)(segmentIndex) = compressor.compress(bytes(i), segmentIndex)
+            }
+          }
+
+          cfor(0)(_ < bandCount, _ + 1) { i =>
+            tiles(i) =
+              GeoTiffTile(
+                new ArraySegmentBytes(bands(i)),
+                decompressor,
+                segmentLayout,
+                compression,
+                cellType,
+                Some(bandType)
+              )
+          }
+        case _ =>
+          println("here2")
+          val bands = Array.ofDim[Array[Byte]](bandCount, segmentCount)
+          val compressor = compression.createCompressor(segmentCount)
+          val decompressor = compressor.createDecompressor()
+          val bytesPerSample = bandType.bytesPerSample
+
+          getSegments(0 until segmentCount).foreach { case (segmentIndex, geoTiffSegment) =>
+            val bytes = GeoTiffSegment.deinterleave(geoTiffSegment.bytes, bandCount, bytesPerSample)
+            cfor(0)(_ < bandCount, _ + 1) { i =>
+              bands(i)(segmentIndex) = compressor.compress(bytes(i), segmentIndex)
+            }
+          }
+
+          cfor(0)(_ < bandCount, _ + 1) { i =>
+            println(s"new ArraySegmentBytes(bands($i)).length: ${new ArraySegmentBytes(bands(i)).length}")
+            tiles(i) =
+              GeoTiffTile(
+                new ArraySegmentBytes(bands(i)),
+                decompressor,
+                segmentLayout,
+                compression,
+                cellType,
+                Some(bandType)
+              )
+          }
+      }
+    } else {
+      println("here3")
+
+      val bandSegmentCount = segmentCount / bandCount
+      val bands = Array.ofDim[Array[Byte]](bandCount, segmentCount)
+
+      println(s"segemntCount: ${segmentCount}")
+      println(s"bandSegemntCount: ${bandSegmentCount}")
+
+      cfor(0)(_ < bandCount, _ + 1) { bandIndex =>
+        val segmentOffset = bandSegmentCount * bandIndex
+
+        segmentBytes.getSegments(segmentOffset until bandSegmentCount + segmentOffset).foreach { case (segmentIndex, segment) =>
+          bands(bandIndex)(segmentIndex - segmentOffset) = segment.clone
+        }
+      }
+
+      cfor(0)(_ < bandCount, _ + 1) { i =>
+        tiles(i) =
+          GeoTiffTile(
+            new ArraySegmentBytes(bands(i)),
+            decompressor,
+            segmentLayout,
+            compression,
+            cellType,
+            Some(bandType)
+          )
+      }
+    }
+
+    println("0")
+    println(s"tiles(0).get(0, 0): ${tiles(0).get(0, 0)}")
+    println(s"${decompressor.code}")
+    tiles(0).map(s => s)
+    println("1")
+    tiles(1).map(s => s)
+    println("2")
+    tiles(2).map(s => s)
+
+    println(s"tiles.length: ${tiles.length}")
+
+    tiles.toVector
+  }
+
+
+  private def _subsetBands(bandSequence: Seq[Int]): Vector[Tile] = {
+    val actualBandsCount = bandSequence.size
+    val tiles = new Array[Tile](actualBandsCount)
+
+    if (hasPixelInterleave) {
+      bandType match {
+        case BitBandType =>
+          val bands = Array.ofDim[Array[Byte]](actualBandsCount, segmentCount)
+          val compressor = compression.createCompressor(segmentCount)
+
+          getSegments(0 until segmentCount).foreach { case (segmentIndex, segment) =>
+            val (cols, rows) =
+              if (segmentLayout.isTiled) (segmentLayout.tileLayout.tileCols, segmentLayout.tileLayout.tileRows)
+              else segmentLayout.getSegmentDimensions(segmentIndex)
+            val bytes = GeoTiffSegment.deinterleaveBitSegment(segment, cols, rows, bandCount, bandSequence)
+            cfor(0)(_ < actualBandsCount, _ + 1) { i =>
+              bands(i)(segmentIndex) = compressor.compress(bytes(i), segmentIndex)
+            }
+          }
+
+          cfor(0)(_ < actualBandsCount, _ + 1) { i =>
+            tiles(i) =
+              GeoTiffTile(
+                new ArraySegmentBytes(bands(i)),
+                compressor.createDecompressor(),
+                segmentLayout,
+                compression,
+                cellType,
+                Some(bandType)
+              )
+          }
+        case _ =>
+          val bands = Array.ofDim[Array[Byte]](actualBandsCount, segmentCount)
+          val compressor = compression.createCompressor(segmentCount)
+          val bytesPerSample = bandType.bytesPerSample
+
+          getSegments(0 until segmentCount).foreach { case (segmentIndex, geoTiffSegment) =>
+            val bytes = GeoTiffSegment.deinterleave(geoTiffSegment.bytes, bandCount, bytesPerSample, bandSequence)
+            cfor(0)(_ < actualBandsCount, _ + 1) { i =>
+              bands(i)(segmentIndex) = compressor.compress(bytes(i), segmentIndex)
+            }
+          }
+
+          cfor(0)(_ < actualBandsCount, _ + 1) { i =>
+            tiles(i) =
+              GeoTiffTile(
+                new ArraySegmentBytes(bands(i)),
+                compressor.createDecompressor(),
+                segmentLayout,
+                compression,
+                cellType,
+                Some(bandType)
+              )
+          }
+      }
+    } else {
+      val bandSegmentCount = segmentCount / bandCount
+      val bands = Array.ofDim[Array[Byte]](actualBandsCount, segmentCount)
+
+      bandSequence.zipWithIndex.foreach { case (bandIndex, i) =>
+        val segmentOffset = bandSegmentCount * bandIndex
+
+        segmentBytes.getSegments(segmentOffset until bandSegmentCount + segmentOffset).foreach { case (segmentIndex, segment) =>
+          bands(i)(segmentIndex - segmentOffset) = segment.clone
+        }
+
+      }
+
+
+      bandSequence.zipWithIndex.foreach { case (_, i) =>
+        tiles(i) =
+          GeoTiffTile(
+            new ArraySegmentBytes(bands(i)),
+            decompressor,
+            segmentLayout,
+            compression,
+            cellType,
+            Some(bandType)
+          )
+      }
+    }
+    tiles.toVector
+  }
+
   /**
-   * Creates an ArrayMultibandTIle that contains a subset of bands
-   * from the GeoTiff.
-   *
-   * @param  bandSequence  A sequence of band indexes that are a subset of bands of the GeoTiff
-   * @return               Returns an [[ArrayMultibandTile]] with the selected bands
-   */
+    * Creates an ArrayMultibandTIle that contains a subset of bands
+    * from the GeoTiff.
+    *
+    * @param  bandSequence  A sequence of band indexes that are a subset of bands of the GeoTiff
+    * @return               Returns an [[ArrayMultibandTile]] with the selected bands
+    */
+
   def subsetBands(bandSequence: Seq[Int]): ArrayMultibandTile = {
     val newBands = Array.ofDim[Tile](bandSequence.size)
     var i = 0
@@ -235,11 +424,14 @@ abstract class GeoTiffMultibandTile(
     new ArrayMultibandTile(newBands)
   }
 
+  def subsetBandsNew(bandSequence: Seq[Int]): ArrayMultibandTile =
+    new ArrayMultibandTile(_subsetBands(bandSequence).toArray)
+
   /**
     * Converts the GeoTiffMultibandTile to an
     * [[ArrayMultibandTile]] */
   def toArrayTile(): ArrayMultibandTile =
-    ArrayMultibandTile((0 until bandCount map { band(_).toArrayTile }):_*)
+    ArrayMultibandTile(bands: _*)
 
   /**
    * Performs a crop on itself. The returned MultibandGeoTiffTile will

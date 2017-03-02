@@ -257,10 +257,15 @@ abstract class GeoTiffTile(
   def map(f: Int => Int): GeoTiffTile = {
     val arr = Array.ofDim[Array[Byte]](segmentCount)
     val compressor = compression.createCompressor(segmentCount)
+    println("zz")
+    println(s"segmentCount: ${segmentCount}")
     getSegments(0 until segmentCount).foreach { case (segmentIndex, segment) =>
+      println("zzz")
       val newBytes = segment.map(f(_))
       arr(segmentIndex) = compressor.compress(newBytes, segmentIndex)
+      println("zzzz")
     }
+    println("zzzzz")
 
     GeoTiffTile(
       new ArraySegmentBytes(arr),

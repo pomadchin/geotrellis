@@ -113,7 +113,6 @@ object GeoTiffReader {
           info.segmentLayout,
           info.compression,
           info.bandCount,
-          info.hasPixelInterleave,
           info.cellType,
           Some(info.bandType)
         ).band(0)
@@ -180,7 +179,6 @@ object GeoTiffReader {
         info.segmentLayout,
         info.compression,
         info.bandCount,
-        info.hasPixelInterleave,
         info.cellType,
         Some(info.bandType)
       )
@@ -199,7 +197,6 @@ object GeoTiffReader {
     segmentLayout: GeoTiffSegmentLayout,
     compression: Compression,
     bandCount: Int,
-    hasPixelInterleave: Boolean,
     noDataValue: Option[Double]
   ) {
     def cellType: CellType = (bandType, noDataValue) match {
@@ -287,7 +284,7 @@ object GeoTiffReader {
         TiffTagsReader.read(byteReader, bigStart)
       }
 
-    val hasPixelInterleave = tiffTags.hasPixelInterleave
+    val interleaveMethod = tiffTags.interleaveMethod
 
     val decompressor = Decompressor(tiffTags, byteReader.order)
 
@@ -318,7 +315,7 @@ object GeoTiffReader {
     val bandType = tiffTags.bandType
     val bandCount = tiffTags.bandCount
 
-    val segmentLayout = GeoTiffSegmentLayout(cols, rows, storageMethod, bandType)
+    val segmentLayout = GeoTiffSegmentLayout(cols, rows, storageMethod, interleaveMethod, bandType)
 
     val segmentBytes: SegmentBytes =
       if (streaming)
@@ -349,14 +346,13 @@ object GeoTiffReader {
       tiffTags.extent,
       tiffTags.crs,
       tiffTags.tags,
-      GeoTiffOptions(storageMethod, compression, colorSpace, colorMap),
+      GeoTiffOptions(storageMethod, interleaveMethod, compression, colorSpace, colorMap),
       bandType,
       segmentBytes,
       decompressor,
       segmentLayout,
       compression,
       bandCount,
-      hasPixelInterleave,
       noDataValue
     )
   }

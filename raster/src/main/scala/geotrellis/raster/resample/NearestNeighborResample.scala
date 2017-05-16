@@ -23,7 +23,13 @@ class NearestNeighborResample(tile: Tile, extent: Extent)
     extends Resample(tile, extent) {
 
   override def resampleValid(x: Double, y: Double): Int = {
-    val col = {
+    val (col, row) = {
+      val (bc, br) = re.coord2pixel(x, y)
+      val c = if(bc < tile.cols) bc else tile.cols - 1
+      val r = if(br < tile.rows) br else tile.rows - 1
+      c -> r
+    }
+    /*val col = {
       val c = re.mapXToGrid(x)
       if(c < tile.cols) c else tile.cols - 1
     }
@@ -31,7 +37,7 @@ class NearestNeighborResample(tile: Tile, extent: Extent)
     val row = {
       val r = re.mapYToGrid(y)
       if(r < tile.rows) r else tile.rows - 1
-    }
+    }*/
 
     tile.get(col, row)
   }

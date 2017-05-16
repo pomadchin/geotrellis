@@ -16,7 +16,8 @@
 
 package geotrellis.spark.etl
 
-import geotrellis.raster.CellGrid
+import geotrellis.proj4.WebMercator
+import geotrellis.raster._
 import geotrellis.raster.crop.CropMethods
 import geotrellis.raster.merge.TileMergeMethods
 import geotrellis.raster.prototype.TilePrototypeMethods
@@ -25,13 +26,15 @@ import geotrellis.raster.resample.{NearestNeighbor, ResampleMethod}
 import geotrellis.raster.stitch.Stitcher
 import geotrellis.spark._
 import geotrellis.spark.io._
+import geotrellis.spark.io.hadoop._
+import geotrellis.raster.io.geotiff._
 import geotrellis.spark.tiling._
 import geotrellis.spark.pyramid._
 import geotrellis.spark.tiling._
 import geotrellis.util._
 import geotrellis.vector._
 import geotrellis.spark.etl.config._
-
+import org.apache.hadoop.fs.Path
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 
@@ -140,9 +143,19 @@ case class Etl(conf: EtlConf, @transient modules: Seq[TypedModule] = Etl.default
     V <: CellGrid: Stitcher: ClassTag: (? => TileMergeMethods[V]): (? => TilePrototypeMethods[V]):
     (? => TileReprojectMethods[V]): (? => CropMethods[V]),
     K: SpatialComponent: Boundable: ClassTag
-  ](rdd: RDD[(I, V)], method: ResampleMethod = NearestNeighbor)(implicit sc: SparkContext): (Int, RDD[(K, V)] with Metadata[TileLayerMetadata[K]]) = {
+  ](rdd: RDD[(I, V)])(implicit sc: SparkContext): (Int, RDD[(K, V)] with Metadata[TileLayerMetadata[K]]) =
+    tile[I, V, K](rdd, output.resampleMethod)
+
+  def tile[
+    I: Component[?, ProjectedExtent]: (? => TilerKeyMethods[I, K]),
+    V <: CellGrid: Stitcher: ClassTag: (? => TileMergeMethods[V]): (? => TilePrototypeMethods[V]):
+    (? => TileReprojectMethods[V]): (? => CropMethods[V]),
+    K: SpatialComponent: Boundable: ClassTag
+  ](rdd: RDD[(I, V)], method: ResampleMethod)(implicit sc: SparkContext): (Int, RDD[(K, V)] with Metadata[TileLayerMetadata[K]]) = {
     val targetCellType = output.cellType
     val destCrs = output.getCrs.get
+
+    println(s"method: $method")
 
     /** Tile layers form some resolution and adjust partition count based on resolution difference */
     def resizingTileRDD(
@@ -153,7 +166,9 @@ case class Etl(conf: EtlConf, @transient modules: Seq[TypedModule] = Etl.default
       // rekey metadata to targetLayout
       val newSpatialBounds = KeyBounds(targetLayout.mapTransform(floatMD.extent))
       val tiledMD = floatMD.copy(
-        bounds = floatMD.bounds.setSpatialBounds(newSpatialBounds))
+        bounds = floatMD.bounds.setSpatialBounds(newSpatialBounds),
+        layout = targetLayout
+      )
 
       // > 1 means we're upsampling during tiling process
       val resolutionRatio = (floatMD.layout.cellSize.resolution / targetLayout.cellSize.resolution)
@@ -175,9 +190,41 @@ case class Etl(conf: EtlConf, @transient modules: Seq[TypedModule] = Etl.default
         }
 
         scheme match {
-          case Left(scheme: ZoomedLayoutScheme) if output.maxZoom.isDefined=>
+          case Left(scheme: ZoomedLayoutScheme) if output.maxZoom.isDefined => {
             val LayoutLevel(zoom, layoutDefinition) = scheme.levelForZoom(output.maxZoom.get)
-            zoom -> resizingTileRDD(reprojected, floatMD, layoutDefinition)
+
+            println(s"layoutDefinition: $layoutDefinition")
+
+            println(s"=================")
+            println(s"floatMD: ${floatMD}")
+            println(s"floatMD.cellSize: ${floatMD.cellSize}")
+            println(s"=================")
+
+            val tuple = zoom -> resizingTileRDD(reprojected, floatMD, layoutDefinition)
+            val (z, r) = tuple
+
+            println(s"=================")
+            println(s"r.metadata: ${r.metadata}")
+            println(s"CellSize on zoom lvl (${z}): ${r.metadata.cellSize}")
+            println(s"=================")
+
+            r.metadata.cellwidth
+
+            val rasters =
+              r.asInstanceOf[RDD[(SpatialKey, Tile)] with geotrellis.spark.Metadata[geotrellis.spark.TileLayerMetadata[SpatialKey]]]
+
+            val mdz = rasters.metadata
+
+            rasters.foreachPartition { iter =>
+              iter.foreach { case (key, tile) =>
+                GeoTiff(tile, mdz.mapTransform(key), mdz.crs).write(s"/data/bees-samples/bees-${key.col}-${key.row}.tiff")
+              }
+            }
+
+            sys.exit(0)
+
+            tuple
+          }
 
           case Left(scheme) => // True for both FloatinglayoutScheme and ZoomedlayoutScheme
             val LayoutLevel(zoom, layoutDefinition) = scheme.levelFor(floatMD.extent, floatMD.cellSize)
@@ -190,15 +237,51 @@ case class Etl(conf: EtlConf, @transient modules: Seq[TypedModule] = Etl.default
       case BufferedReproject =>
         // Buffered reproject requires that tiles are already in some layout so we can find the neighbors
         val md = { // collecting floating metadata allows detecting upsampling
-          val (_, md) = rdd.collectMetadata(FloatingLayoutScheme(output.tileSize))
+          val (_, md) = rdd.collectMetadata(FloatingLayoutScheme(512))
           md.copy(cellType = targetCellType.getOrElse(md.cellType))
         }
         val tiled = ContextRDD(rdd.tileToLayout[K](md, method), md)
 
+        println(s"=================")
+        println(s"tiled.metadata: ${tiled.metadata}")
+        println(s"tiled.metadata.cellSize: ${tiled.metadata.cellSize}")
+        println(s"=================")
+
         scheme match {
-          case Left(layoutScheme: ZoomedLayoutScheme) if output.maxZoom.isDefined =>
-            val LayoutLevel(zoom, layoutDefinition) = layoutScheme.levelForZoom(output.maxZoom.get)
-            zoom -> tiled.reproject(destCrs, layoutDefinition, method)._2
+          case Left(layoutScheme: ZoomedLayoutScheme) if output.maxZoom.isDefined => {
+            val LayoutLevel(zoom, _layoutDefinition) = layoutScheme.levelForZoom(output.maxZoom.get)
+            val LayoutLevel(_, layoutDefinition) =
+              LayoutLevel(
+                zoom,
+                FloatingLayoutScheme(512)
+                  .levelFor(_layoutDefinition.extent, _layoutDefinition.cellSize)
+                  .layout
+              )
+
+            println(s"layoutDefinition: $layoutDefinition")
+
+            val tuple = zoom -> tiled.reproject(destCrs, layoutDefinition, method)._2
+            val (z, r) = tuple
+
+            println(s"=================")
+            println(s"r.metadata: ${r.metadata}")
+            println(s"CellSize on zoom lvl (${z}): ${r.metadata.cellSize}")
+            println(s"=================")
+
+            val rasters =
+              r.asInstanceOf[RDD[(SpatialKey, Tile)] with geotrellis.spark.Metadata[geotrellis.spark.TileLayerMetadata[SpatialKey]]]
+
+            val mdz = rasters.metadata
+
+            rasters.foreachPartition { iter =>
+              iter.foreach { case (key, tile) =>
+                GeoTiff(tile, mdz.mapTransform(key), mdz.crs).write(s"/data/bees-samples/bees-${key.col}-${key.row}.tiff")
+              }
+            }
+
+            sys.exit(0)
+            tuple
+          }
 
           case Left(layoutScheme) =>
             tiled.reproject(destCrs, layoutScheme, method)

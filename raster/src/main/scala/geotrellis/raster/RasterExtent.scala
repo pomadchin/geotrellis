@@ -77,6 +77,27 @@ case class RasterExtent(
   if (cols <= 0) throw GeoAttrsError(s"invalid cols: $cols")
   if (rows <= 0) throw GeoAttrsError(s"invalid rows: $rows")
 
+  val (xoff, a, b, yoff, d, e) =
+    (extent.xmin, (extent.xmax - extent.xmin) / cols, 0d, extent.ymax, 0d, -(extent.ymax - extent.ymin) / rows)
+
+  // returns pixel position (col, row) by its geocoords (x, y)
+  def coord2pixel(p: (Double, Double)): (Int, Int) = coord2pixel(p._1, p._2)
+  def coord2pixel(x: Double, y: Double): (Int, Int) = {
+    if((b * d - a * e) != 0 && b != 0) {
+      val c = (b * y + e * yoff - e * x - b * xoff) / (b * d - a * e)
+      val r = (a * xoff - a * y - d * yoff + d * x) / (b * d - a * e)
+
+      (c.toInt, r.toInt)
+    } else if (b == 0 && a != 0 && e != 0) {
+      val c = (x - xoff) / a
+      val r = (-a * yoff + a * y + d * xoff - d * x) / (a * e)
+
+      (c.toInt, r.toInt)
+    } else throw new NoSuchElementException(
+      s"Incorrect coords: for such ($x, $y) there can be an infinite amount of rows in an image."
+    )
+  }
+
   /**
     * Convert map coordinates (x, y) to grid coordinates (col, row).
     */

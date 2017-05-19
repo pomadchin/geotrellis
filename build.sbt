@@ -1,6 +1,6 @@
 import Dependencies._
 import sbt.Keys._
-import de.heikoseeberger.sbtheader.license.Apache2_0
+// import de.heikoseeberger.sbtheader.license.Apache2_0
 
 lazy val commonSettings = Seq(
   version := Version.geotrellis,
@@ -61,16 +61,16 @@ lazy val commonSettings = Seq(
         </developer>
       </developers>),
   shellPrompt := { s => Project.extract(s).currentProject.id + " > " },
-  dependencyUpdatesExclusions := moduleFilter(organization = "org.scala-lang"),
+  // dependencyUpdatesExclusions := moduleFilter(organization = "org.scala-lang"),
 
   resolvers ++= Seq(
     "geosolutions" at "http://maven.geo-solutions.it/",
     "osgeo" at "http://download.osgeo.org/webdav/geotools/"
-  ),
-  headers := Map(
-    "scala" -> Apache2_0("2016", "Azavea"),
-    "conf" -> Apache2_0("2016", "Azavea", "#")
-  )
+  )//,
+  // headers := Map(
+  //   "scala" -> Apache2_0("2016", "Azavea"),
+  //   "conf" -> Apache2_0("2016", "Azavea", "#")
+  // )
 )
 
 lazy val root = Project("geotrellis", file(".")).
@@ -102,7 +102,7 @@ lazy val root = Project("geotrellis", file(".")).
     vectortile
   ).
   settings(commonSettings: _*).
-  enablePlugins(ScalaUnidocPlugin).
+  // enablePlugins(ScalaUnidocPlugin).
   settings(
     initialCommands in console :=
       """
@@ -111,8 +111,8 @@ lazy val root = Project("geotrellis", file(".")).
       import geotrellis.proj4._
       import geotrellis.spark._
       """
-  ).
-  settings(unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(geowave))
+  )// .
+  // settings(unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(geowave))
 
 lazy val macros = project
   .settings(commonSettings)

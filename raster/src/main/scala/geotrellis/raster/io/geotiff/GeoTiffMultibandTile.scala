@@ -392,19 +392,31 @@ abstract class GeoTiffMultibandTile(
     } else {
       val intersectingSegments = getIntersectingSegments(gridBounds, bandIndices)
 
-      logger.debug(s"Cropping $gridBounds uses ${intersectingSegments.length * bandCount} out of ${segmentCount * bandCount} segments")
+      println(s"getIntersectingSegments($gridBounds, ${bandIndices.toList}): ${getIntersectingSegments(gridBounds, bandIndices).toList}")
+      println(s"Cropping $gridBounds uses ${intersectingSegments.length * bandCount} out of ${segmentCount * bandCount} segments")
 
       val bandSegmentCount = segmentCount / bandCount
+
+      println(s"bandSegmentCount // $segmentCount / $bandCount //: $bandSegmentCount")
 
       val bandSegmentMap = intersectingSegments.toMap
       val bandIndexToSubsetIndex = bandIndices.zipWithIndex.toMap
 
-      getSegments(intersectingSegments.map(_._2)).foreach { case (id, segment) =>
+      println(s"bandSegmentMap: ${bandSegmentMap.toList}")
+      println(s"bandIndexToSubsetIndex: ${bandIndexToSubsetIndex.toList}")
+
+      getSegments(intersectingSegments.map({ case (b, s) => b + s })).foreach { case (id, segment) =>
         val bandIndex = bandSegmentMap(id)
         val subsetBandIndex = bandIndexToSubsetIndex(bandIndex)
 
+
+
+        println(s"bandIndex: $bandIndex")
+        println(s"subsetBandIndex: $subsetBandIndex")
+
         val segmentBounds = getGridBounds(id)
         val segmentTransform = getSegmentTransform(id)
+
         val overlap = gridBounds.intersection(segmentBounds).get
 
         if (cellType.isFloatingPoint) {

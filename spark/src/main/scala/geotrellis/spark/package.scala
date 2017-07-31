@@ -24,7 +24,6 @@ import geotrellis.spark.tiling._
 import geotrellis.spark.ingest._
 import geotrellis.spark.crop._
 import geotrellis.spark.filter._
-
 import org.apache.spark.{Partitioner, SparkContext}
 import org.apache.spark.rdd._
 import spire.syntax.cfor._
@@ -36,8 +35,10 @@ import java.time.Instant
 
 package object spark
     extends buffer.Implicits
+    with costdistance.Implicits
     with crop.Implicits
     with density.Implicits
+    with distance.Implicits
     with equalization.Implicits
     with filter.Implicits
     with join.Implicits
@@ -59,7 +60,9 @@ package object spark
     with stitch.Implicits
     with summary.Implicits
     with summary.polygonal.Implicits
-    with tiling.Implicits {
+    with tiling.Implicits
+    with timeseries.Implicits
+    with viewshed.Implicits {
   type TileLayerRDD[K] = RDD[(K, Tile)] with Metadata[TileLayerMetadata[K]]
   object TileLayerRDD {
     def apply[K](rdd: RDD[(K, Tile)], metadata: TileLayerMetadata[K]): TileLayerRDD[K] =
@@ -111,7 +114,7 @@ package object spark
   implicit def longToInstant(millis: Long): Instant = Instant.ofEpochMilli(millis)
 
   /** Necessary for Contains.forPoint query */
-  implicit def tileLayerMetadataToMapKeyTransform(tm: TileLayerMetadata[SpatialKey]): MapKeyTransform = tm.mapTransform
+  implicit def tileLayerMetadataToMapKeyTransform[K](tm: TileLayerMetadata[K]): MapKeyTransform = tm.mapTransform
 
   implicit class WithContextWrapper[K, V, M](val rdd: RDD[(K, V)] with Metadata[M]) {
     def withContext[K2, V2](f: RDD[(K, V)] => RDD[(K2, V2)]) =

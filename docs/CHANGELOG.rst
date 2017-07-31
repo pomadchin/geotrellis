@@ -1,11 +1,22 @@
 Changelog
 =========
 
+1.2.0
+-----
+
+Deprecations
+^^^^^^^^^^^^
+
+- ``GridBounds.size`` in favour of ``GridBounds.sizeLong``
+- ``GridBounds.coords`` in favour of ``GridBounds.coordsIter``
+
 1.1.0
 -----
 
 Features
 ^^^^^^^^
+
+- `Spark Enabled Cost Distance <https://github.com/locationtech/geotrellis/pull/1999>`__
 
 - `Conforming Delaunay Triangulation <https://github.com/locationtech/geotrellis/pull/1848>`__
 
@@ -21,7 +32,11 @@ Features
 
 - `Added matplotlib's Magma, Inferno, Plasma, and Viridis color ramps <https://github.com/locationtech/geotrellis/pull/2053>`__
 
+- `Added library of land use classification color maps. <https://github.com/locationtech/geotrellis/pull/2073>`__
+
 - `Add MGRS encode/decode support to proj4 <https://github.com/locationtech/geotrellis/pull/1838>`__
+
+- `Rasters write support to HDFS / S3 <https://github.com/locationtech/geotrellis/pull/2102>`__
 
 - `Added Range-based reading of HTTP resources <https://github.com/locationtech/geotrellis/pull/2067>`__
 
@@ -34,6 +49,8 @@ Features
 - `Use H3 rather than Next Fit when building S3 partitions from paths <https://github.com/locationtech/geotrellis/pull/1956>`__
 
 - `Added delimiter option to S3InputFormat and S3GeoTiffRDD. <https://github.com/locationtech/geotrellis/pull/2062>`__
+
+- `Signed S3 Streaming for GeoTiff reader (HTTP with GET instead of HEAD request) <https://github.com/locationtech/geotrellis/pull/2091>`__
 
 - `Relaxed constraints to improve layer deletion capabilities <https://github.com/locationtech/geotrellis/pull/2039>`__
 
@@ -51,12 +68,21 @@ Features
 
 - Added Avro codecs for `ProjectedExtent and TemporalProjectedExtent <https://github.com/locationtech/geotrellis/pull/1971>`__ and `ConstantTile types <https://github.com/locationtech/geotrellis/pull/2015>`__
 
+- `Repartition in ETL when re-tiling increases layer resolution <https://github.com/locationtech/geotrellis/pull/2135>`__
+
 - `In GeoTiff reader, compute CellSize from TIFF tags <https://github.com/locationtech/geotrellis/pull/1996>`__
 
 - `Improved apply methods for constructing S3RangeReader <https://github.com/locationtech/geotrellis/pull/1994>`__
 
+- `Reorganized handling of CellType.name <https://github.com/locationtech/geotrellis/pull/2142>`__
+
 - Documentation improvements, including `porting the docts to reStructuredText <https://github.com/locationtech/geotrellis/pull/2016>`__
 
+- `Added top-level "Sinusoidal" CRS, commonly used with MODIS <https://github.com/locationtech/geotrellis/pull/2145>`__
+
+- `Added conditional to key bounds decomposition to detect full bounds query in Acccumulo.  <https://github.com/locationtech/geotrellis/pull/2164>`__
+
+- `Support for the ability to specify output CRS via proj4 string. <https://github.com/locationtech/geotrellis/pull/2169>`__
 
 Fixes
 ^^^^^
@@ -64,6 +90,8 @@ Fixes
 - `Fixed issues that made GeoTiff streaming off of S3 slow and broken <https://github.com/locationtech/geotrellis/pull/1905>`__
 
 - `Give a better error message for CRS write failures <https://github.com/locationtech/geotrellis/pull/1874>`__
+
+- `Fix clipping logic during polygon layer query <https://github.com/locationtech/geotrellis/pull/2213>`__
 
 - `Fixed type for CRS authority in NAD83 <https://github.com/locationtech/geotrellis/pull/1916>`__
 
@@ -97,6 +125,48 @@ Fixes
 
 - `Fixed issue with reading tiny (4 pixel or less) GeoTiffs <https://github.com/locationtech/geotrellis/pull/2063>`__
 
+- `Fix usage of IntCachedColorMap in Indexed PNG encoding <https://github.com/locationtech/geotrellis/pull/2075>`__
+
+- `Ensure keyspace exists in CassandraRDDWriter <https://github.com/locationtech/geotrellis/pull/2083>`__
+
+- `Resolved repartitioning issue with HadoopGeoTiffRDD <https://github.com/locationtech/geotrellis/pull/2105>`__
+
+- `Fixed schema for intConstantTileCodec <https://github.com/locationtech/geotrellis/pull/2110>`__
+
+- `In HadoopAttributeStore, get absolute path for attributePath <https://github.com/locationtech/geotrellis/pull/2123>`__
+
+- `In AccumuloLayerDeleter, close batch deleter <https://github.com/locationtech/geotrellis/pull/2117>`__
+
+- `S3InputFormat - bucket names support period and dashes <https://github.com/locationtech/geotrellis/pull/2133>`__
+
+- `Fix TMS scheme min zoom level <https://github.com/locationtech/geotrellis/pull/2137>`__
+
+- `S3AttributeStore now handles ending slashes in prefix. <https://github.com/locationtech/geotrellis/pull/2147>`__
+
+- `Cell type NoData logic for unsigned byte / short not working properly <https://github.com/locationtech/geotrellis/pull/2171>`__
+
+- `CellSize values should not be truncated to integer when parsing from Json. <https://github.com/locationtech/geotrellis/pull/2174>`__
+
+- `Fixes to GeoTiff writing with original LZW compression. <https://github.com/locationtech/geotrellis/pull/2180>`__
+
+- `In ArrayTile.convert, debug instead of warn against floating point data loss. <https://github.com/locationtech/geotrellis/pull/2190>`__
+
+- `Fixes incorrect metadata update in a per-tile reprojection case <https://github.com/locationtech/geotrellis/pull/2201>`__
+
+- `Fix issue with duplicate tiles being read for File and Cassandra backends <https://github.com/locationtech/geotrellis/pull/2200>`__
+
+- `Move to a different Json Schema validator <https://github.com/locationtech/geotrellis/pull/2222>`__
+
+- `S3InputFormat does not filter according to extensions when partitionCount is used <https://github.com/locationtech/geotrellis/issues/2231>`__
+
+- `In S3GeoTiffReader, partitionBytes has no effect if maxTileSize is set <https://github.com/locationtech/geotrellis/issues/2232>`__
+
+- `Fixes typos with rasterizer extension methods <https://github.com/locationtech/geotrellis/pull/2245>`__
+
+- `Fix writing multiband GeoTiff with compression <https://github.com/locationtech/geotrellis/pull/2246>`__
+
+- `Fixed issue with BigTiff vs non-BigTiff offset value packing <https://github.com/locationtech/geotrellis/pull/2247>`__
+
 API Changes
 ^^^^^^^^^^^
 
@@ -112,6 +182,8 @@ While we are trying to stick strictly to `SemVer <http://semver.org/>`__, there 
    - Changed ``size`` to ``length`` in ``ArraySegmentBytes``
    - Replaced ``foreach`` on SegmentBytes with ``getSegments``, which the caller can iterate over themselves
    - Changed ``getDecompressedBytes`` to ``decompressGeoTiffSegment``
+- Changed some interal but publicly visible `implicit classes and read methods around TiffTagReader <https://github.com/locationtech/geotrellis/pull/2247>`__
+   - Added as an implicit parameter to multiple locations, most publicly in `TiffTagReader.read(byteReader: ByteReader, tagsStartPosition: Long)(implicit ttos: TiffTagOffsetSize)`. Also changed that method from being generic to always taking a `Long` offset.
 
 - Moved some misplaced `implicit JsonFormats <https://github.com/locationtech/geotrellis/pull/1919>`__
 

@@ -26,13 +26,13 @@ import scala.collection.mutable.ArrayBuffer
   * @param totalCols          The total amount of cols in the GeoTiff
   * @param totalRows          The total amount of rows in the GeoTiff
   * @param tileLayout         The [[TileLayout]] of the GeoTiff
-  * @param storagemethod      Storage method used for the segments (tiled or striped)
+  * @param storageMethod      Storage method used for the segments (tiled or striped)
   * @param interleaveMethod   The interleave method used for segments (pixel or band)
   */
 case class GeoTiffSegmentLayout(totalCols: Int, totalRows: Int, tileLayout: TileLayout, storageMethod: StorageMethod, interleaveMethod: InterleaveMethod) {
   def isTiled: Boolean =
     storageMethod match {
-      case _: TiledStorageMethod => true
+      case _: Tiled => true
       case _ => false
     }
 
@@ -42,7 +42,7 @@ case class GeoTiffSegmentLayout(totalCols: Int, totalRows: Int, tileLayout: Tile
 }
 
 trait GeoTiffSegmentLayoutTransform {
-  private [geotiff] def segmentLayout: GeoTiffSegmentLayout
+  private [geotrellis] def segmentLayout: GeoTiffSegmentLayout
   private lazy val GeoTiffSegmentLayout(totalCols, totalRows, tileLayout, isTiled, interleaveMethod) =
     segmentLayout
 
@@ -50,12 +50,8 @@ trait GeoTiffSegmentLayoutTransform {
   def bandCount: Int
 
   /** Calculate the number of segments per band */
-  private def bandSegmentCount =
-    if(segmentLayout.hasPixelInterleave) {
-      tileLayout.layoutCols * tileLayout.layoutRows
-    } else {
-      tileLayout.layoutCols * tileLayout.layoutRows / bandCount
-    }
+  private def bandSegmentCount: Int =
+    tileLayout.layoutCols * tileLayout.layoutRows
 
   /**
     * Calculates pixel dimensions of a given segment in this layout.
@@ -65,26 +61,36 @@ trait GeoTiffSegmentLayoutTransform {
     * @return Tuple representing segment (cols, rows)
     */
   def getSegmentDimensions(segmentIndex: Int): (Int, Int) = {
-    println(s"normalizedSegmentIndex = $segmentIndex % $bandSegmentCount // ${segmentLayout.hasPixelInterleave}")
-    val normalizedSegmentIndex = segmentIndex// * bandSegmentCount
+    val normalizedSegmentIndex = segmentIndex % bandSegmentCount
     val layoutCol = normalizedSegmentIndex % tileLayout.layoutCols
     val layoutRow = normalizedSegmentIndex / tileLayout.layoutCols
 
     val cols =
       if(layoutCol == tileLayout.layoutCols - 1) {
-        totalCols - ( (tileLayout.layoutCols - 1) * tileLayout.tileCols)
+        totalCols - ((tileLayout.layoutCols - 1) * tileLayout.tileCols)
       } else {
         tileLayout.tileCols
       }
 
     val rows =
       if(layoutRow == tileLayout.layoutRows - 1) {
-        totalRows - ( (tileLayout.layoutRows - 1) * tileLayout.tileRows)
+        totalRows - ((tileLayout.layoutRows - 1) * tileLayout.tileRows)
       } else {
         tileLayout.tileRows
       }
 
     (cols, rows)
+  }
+
+  /**
+    * Calculates the total pixel count for given segment in this layout.
+    *
+    * @param segmentIndex: An Int that represents the given segment in the index
+    * @return Pixel size of the segment
+    */
+  def getSegmentSize(segmentIndex: Int): Int = {
+    val (cols, rows) = getSegmentDimensions(segmentIndex)
+    cols * rows
   }
 
   /**
@@ -103,20 +109,22 @@ trait GeoTiffSegmentLayoutTransform {
   }
 
   private [geotiff] def getSegmentTransform(segmentIndex: Int): SegmentTransform = {
-    val id = segmentIndex //% bandSegmentCount
+    val id = segmentIndex % bandSegmentCount
     if (segmentLayout.isStriped)
       StripedSegmentTransform(id, GeoTiffSegmentLayoutTransform(segmentLayout, bandCount))
     else
       TiledSegmentTransform(id, GeoTiffSegmentLayoutTransform(segmentLayout, bandCount))
   }
 
-  private [geotiff] def getGridBounds(segmentIndex: Int, isBit: Boolean = false): GridBounds = {
-    val normalizedSegmentIndex = segmentIndex //% bandSegmentCount
-    val (segmentCols, segmentRows) = getSegmentDimensions(normalizedSegmentIndex)
+  def getSegmentCoordinate(segmentIndex: Int): (Int, Int) =
+    (segmentIndex % tileLayout.layoutCols, segmentIndex / tileLayout.layoutCols)
+
+  private [geotrellis] def getGridBounds(segmentIndex: Int, isBit: Boolean = false): GridBounds = {
+    val normalizedSegmentIndex = segmentIndex % bandSegmentCount
+    val (segmentCols, segmentRows) = getSegmentDimensions(segmentIndex)
 
     val (startCol, startRow) = {
-      val (layoutCol, layoutRow) =
-        (normalizedSegmentIndex % tileLayout.layoutCols, segmentIndex / tileLayout.layoutCols)
+      val (layoutCol, layoutRow) = getSegmentCoordinate(normalizedSegmentIndex)
       (layoutCol * tileLayout.tileCols, layoutRow * tileLayout.tileRows)
     }
 
@@ -127,7 +135,7 @@ trait GeoTiffSegmentLayoutTransform {
   }
 
   /** Returns all segment indices which intersect given pixel grid bounds */
-  private [geotiff] def getIntersectingSegments(bounds: GridBounds): Array[Int] = {
+  private [geotrellis] def getIntersectingSegments(bounds: GridBounds): Array[Int] = {
     val tc = tileLayout.tileCols
     val tr = tileLayout.tileRows
     val ab = ArrayBuffer[Int]()

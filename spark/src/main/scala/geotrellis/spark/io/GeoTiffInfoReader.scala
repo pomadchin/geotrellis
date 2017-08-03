@@ -20,6 +20,7 @@ import geotrellis.raster.io.geotiff.reader.GeoTiffReader
 import geotrellis.raster.io.geotiff.reader.GeoTiffReader.GeoTiffInfo
 import geotrellis.util.LazyLogging
 import geotrellis.raster.GridBounds
+import geotrellis.raster.io.geotiff.GeoTiffSegmentLayoutTransform
 
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -58,6 +59,9 @@ private [geotrellis] trait GeoTiffInfoReader extends LazyLogging {
     }
   }
 
+  def getSegmentLayoutTransform(geoTiffInfo: GeoTiffInfo): GeoTiffSegmentLayoutTransform =
+    GeoTiffSegmentLayoutTransform(geoTiffInfo.segmentLayout, geoTiffInfo.bandCount)
+
   /**
     * Function calculates a split of segments, to minimize segments reads.
     *
@@ -66,7 +70,7 @@ private [geotrellis] trait GeoTiffInfoReader extends LazyLogging {
     * each segment can only be in a single partition.
     * */
   def segmentsByPartitionBytes(partitionBytes: Long = Long.MaxValue, maxTileSize: Option[Int] = None)
-                                                   (implicit sc: SparkContext): RDD[((String, GeoTiffInfo), Array[GridBounds])] = {
+                              (implicit sc: SparkContext): RDD[((String, GeoTiffInfo), Array[GridBounds])] = {
     geoTiffInfoRdd.flatMap { case (key: String, md: GeoTiffInfo) =>
       val bufferKey = key -> md
 
@@ -75,6 +79,7 @@ private [geotrellis] trait GeoTiffInfoReader extends LazyLogging {
 
       val layout = md.segmentLayout
       val segmentBytes = md.segmentBytes
+      val segmentTransform = getSegmentLayoutTransform(md)
 
       // list of desired windows, we'll try to pack them with segments if its possible
       val windows = RasterReader.listWindows(layout.totalCols, layout.totalRows, maxTileSize)
@@ -91,10 +96,10 @@ private [geotrellis] trait GeoTiffInfoReader extends LazyLogging {
         var currentBoundsLength = 0
 
         // go through all segments which intersect desired bounds and was not put into any partition yet
-        layout.intersectingSegments(gb).intersect(allSegments.toSeq).foreach { i =>
-          val segmentSize = layout.getSegmentSize(i)
+        segmentTransform.getIntersectingSegments(gb).intersect(allSegments.toSeq).foreach { i =>
+          val segmentSize = segmentTransform.getSegmentSize(i)
           val segmentSizeBytes = segmentBytes.getSegmentByteCount(i) * md.bandCount
-          val segmentGb = layout.getGridBounds(i)
+          val segmentGb = segmentTransform.getGridBounds(i)
 
 
           // if segment is inside the window
@@ -141,9 +146,9 @@ private [geotrellis] trait GeoTiffInfoReader extends LazyLogging {
         var currentBoundsLength = 0
 
         allSegments.foreach { i =>
-          val segmentSize = layout.getSegmentSize(i)
+          val segmentSize = segmentTransform.getSegmentSize(i)
           val segmentSizeBytes = segmentBytes.getSegmentByteCount(i) * md.bandCount
-          val segmentGb = layout.getGridBounds(i)
+          val segmentGb = segmentTransform.getGridBounds(i)
 
           if (currentSize <= partitionBytes) {
             if (currentSize <= partitionBytes && (layout.isTiled || layout.isStriped && currentBoundsLength <= gbSize)) {

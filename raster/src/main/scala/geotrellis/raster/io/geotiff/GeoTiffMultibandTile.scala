@@ -31,7 +31,7 @@ object GeoTiffMultibandTile {
   /**
    * Creates a new instances of GeoTiffMultibandTile.
    *
-   * @param compressedBytes: An Array[Array[Byte]] that represents the segments in the GeoTiff
+   * @param segmentBytes: An Array[Array[Byte]] that represents the segments in the GeoTiff
    * @param decompressor: A [[Decompressor]] of the GeoTiff
    * @param segmentLayout: The [[GeoTiffSegmentLayout]] of the GeoTiff
    * @param compression: The [[Compression]] type of the data
@@ -86,57 +86,62 @@ object GeoTiffMultibandTile {
     val bandType = BandType.forCellType(tile.cellType)
     val bandCount = tile.bandCount
 
-    // TODO: Handle pixel interleave construction.
-    // val segmentLayout =
-    //   GeoTiffSegmentLayout(tile.cols, tile.rows, options.storageMethod, options.interleaveMethod, bandType)
-    val segmentLayout =
-      GeoTiffSegmentLayout(tile.cols, tile.rows, options.storageMethod, BandInterleave, bandType)
+    // TODO: Handle band interleave construction.
+     val segmentLayout =
+       GeoTiffSegmentLayout(tile.cols, tile.rows, options.storageMethod, PixelInterleave, bandType)
 
     val segmentCount = segmentLayout.tileLayout.layoutCols * segmentLayout.tileLayout.layoutRows
     val compressor = options.compression.createCompressor(segmentCount)
 
     val segmentBytes = Array.ofDim[Array[Byte]](segmentCount)
-
     val segmentTiles = Array.ofDim[Array[Tile]](segmentCount)
-    cfor(0)(_ < bandCount, _ + 1) { bandIndex =>
-      val bandTiles =
-        options.storageMethod match {
-          case _: Tiled => tile.band(bandIndex).split(segmentLayout.tileLayout)
-          case _: Striped => tile.band(bandIndex).split(segmentLayout.tileLayout, Split.Options(extend = false))
-        }
 
-      cfor(0)(_ < segmentCount, _ + 1) { segmentIndex =>
-        val bandTile = bandTiles(segmentIndex)
-        if(bandIndex == 0) { segmentTiles(segmentIndex) = Array.ofDim[Tile](bandCount) }
-        segmentTiles(segmentIndex)(bandIndex) = bandTile
-      }
-    }
-
-    val byteCount = tile.cellType.bytes
-
-    cfor(0)(_ < segmentCount, _ + 1) { i =>
-      val tiles = segmentTiles(i)
-      val cols = tiles(0).cols
-      val rows = tiles(0).rows
-      val segBytes = Array.ofDim[Byte](cols * rows * bandCount * byteCount)
-
-      val tileBytes = Array.ofDim[Array[Byte]](bandCount)
-      cfor(0)(_ < bandCount, _ + 1) { b =>
-        tileBytes(b) = tiles(b).toBytes
-      }
-
-      var segmentIndex = 0
-      cfor(0)(_ < cols * rows, _ + 1) { cellIndex =>
+    segmentLayout.interleaveMethod match {
+      case PixelInterleave => {
         cfor(0)(_ < bandCount, _ + 1) { bandIndex =>
-          cfor(0)(_ < byteCount, _ + 1) { b =>
-            val bytes = tileBytes(bandIndex)
-            segBytes(segmentIndex) = bytes(cellIndex * byteCount + b)
-            segmentIndex += 1
+          val bandTiles =
+            options.storageMethod match {
+              case _: Tiled => tile.band(bandIndex).split(segmentLayout.tileLayout)
+              case _: Striped => tile.band(bandIndex).split(segmentLayout.tileLayout, Split.Options(extend = false))
+            }
+
+          cfor(0)(_ < segmentCount, _ + 1) { segmentIndex =>
+            val bandTile = bandTiles(segmentIndex)
+            if(bandIndex == 0) { segmentTiles(segmentIndex) = Array.ofDim[Tile](bandCount) }
+            segmentTiles(segmentIndex)(bandIndex) = bandTile
           }
         }
+
+        val byteCount = tile.cellType.bytes
+
+        cfor(0)(_ < segmentCount, _ + 1) { i =>
+          val tiles = segmentTiles(i)
+          val cols = tiles(0).cols
+          val rows = tiles(0).rows
+          val segBytes = Array.ofDim[Byte](cols * rows * bandCount * byteCount)
+
+          val tileBytes = Array.ofDim[Array[Byte]](bandCount)
+          cfor(0)(_ < bandCount, _ + 1) { b =>
+            tileBytes(b) = tiles(b).toBytes
+          }
+
+          var segmentIndex = 0
+          cfor(0)(_ < cols * rows, _ + 1) { cellIndex =>
+            cfor(0)(_ < bandCount, _ + 1) { bandIndex =>
+              cfor(0)(_ < byteCount, _ + 1) { b =>
+                val bytes = tileBytes(bandIndex)
+                segBytes(segmentIndex) = bytes(cellIndex * byteCount + b)
+                segmentIndex += 1
+              }
+            }
+          }
+
+          segmentBytes(i) = compressor.compress(segBytes, i)
+        }
       }
 
-      segmentBytes(i) = compressor.compress(segBytes, i)
+      case BandInterleave =>
+        throw new Exception("Band interleave construction is not supported yet.")
     }
 
     apply(new ArraySegmentBytes(segmentBytes), compressor.createDecompressor, segmentLayout, options.compression, bandCount, tile.cellType)
@@ -345,7 +350,7 @@ abstract class GeoTiffMultibandTile(
     * The bands will be in the order given.
     *
     * @param  gridBounds  A [[GridBounds]] that contains the area to be cropped.
-    * @param  bands       An array of band indexes.
+    * @param  bandIndices       An array of band indexes.
     *
     * @return             A [[ArrayMultibandTile]]
     */
@@ -392,31 +397,20 @@ abstract class GeoTiffMultibandTile(
     } else {
       val intersectingSegments = getIntersectingSegments(gridBounds, bandIndices)
 
-      println(s"getIntersectingSegments($gridBounds, ${bandIndices.toList}): ${getIntersectingSegments(gridBounds, bandIndices).toList}")
-      println(s"Cropping $gridBounds uses ${intersectingSegments.length * bandCount} out of ${segmentCount * bandCount} segments")
+      logger.debug(s"Cropping $gridBounds uses ${intersectingSegments.length * bandCount} out of ${segmentCount * bandCount} segments")
 
       val bandSegmentCount = segmentCount / bandCount
-
-      println(s"bandSegmentCount // $segmentCount / $bandCount //: $bandSegmentCount")
-
-      val bandSegmentMap = intersectingSegments.toMap
+      val segmentBandMap = intersectingSegments.map { case (f, s) => (s, f) }.toMap
       val bandIndexToSubsetIndex = bandIndices.zipWithIndex.toMap
 
-      println(s"bandSegmentMap: ${bandSegmentMap.toList}")
-      println(s"bandIndexToSubsetIndex: ${bandIndexToSubsetIndex.toList}")
-
-      getSegments(intersectingSegments.map({ case (b, s) => b + s })).foreach { case (id, segment) =>
-        val bandIndex = bandSegmentMap(id)
+      getSegments(intersectingSegments.map(_._2)).foreach { case (id, segment) =>
+        val bandIndex = segmentBandMap(id)
         val subsetBandIndex = bandIndexToSubsetIndex(bandIndex)
+        val segmentOffset = bandSegmentCount * subsetBandIndex
+        val offsetId = id - segmentOffset
 
-
-
-        println(s"bandIndex: $bandIndex")
-        println(s"subsetBandIndex: $subsetBandIndex")
-
-        val segmentBounds = getGridBounds(id)
-        val segmentTransform = getSegmentTransform(id)
-
+        val segmentBounds = getGridBounds(offsetId)
+        val segmentTransform = getSegmentTransform(offsetId)
         val overlap = gridBounds.intersection(segmentBounds).get
 
         if (cellType.isFloatingPoint) {

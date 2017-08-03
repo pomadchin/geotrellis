@@ -262,99 +262,108 @@ object GeoTiffReader {
     }
   }
 
-  private def readGeoTiffInfo(byteReader: ByteReader, decompress: Boolean, streaming: Boolean): GeoTiffInfo = {
-    // set byte ordering
-    (byteReader.get.toChar, byteReader.get.toChar) match {
-      case ('I', 'I') => byteReader.order(ByteOrder.LITTLE_ENDIAN)
-      case ('M', 'M') => byteReader.order(ByteOrder.BIG_ENDIAN)
-      case _ => throw new MalformedGeoTiffException("incorrect byte order")
-    }
-
-    // Validate Tiff identification number
-    val tiffIdNumber = byteReader.getChar
-    if (tiffIdNumber != 42 && tiffIdNumber != 43)
-      throw new MalformedGeoTiffException(s"bad identification number (must be 42 or 43, was $tiffIdNumber (${tiffIdNumber.toInt}))")
-
-    val tiffTags =
-      if (tiffIdNumber == 42) {
-        val smallStart = byteReader.getInt
-        TiffTagsReader.read(byteReader, smallStart)(IntTiffTagOffsetSize)
-      } else {
-        byteReader.position(8)
-        val bigStart = byteReader.getLong
-        TiffTagsReader.read(byteReader, bigStart)(LongTiffTagOffsetSize)
+  def readGeoTiffInfo(byteReader: ByteReader, decompress: Boolean, streaming: Boolean): GeoTiffInfo = {
+    val oldPos = byteReader.position
+    try {
+      byteReader.position(0)
+      // set byte ordering
+      (byteReader.get.toChar, byteReader.get.toChar) match {
+        case ('I', 'I') =>
+          byteReader.order(ByteOrder.LITTLE_ENDIAN)
+        case ('M', 'M') =>
+          byteReader.order(ByteOrder.BIG_ENDIAN)
+        case _ => throw new MalformedGeoTiffException("incorrect byte order")
       }
 
-    val interleaveMethod = tiffTags.interleaveMethod
+      byteReader.position(oldPos + 2)
+      // Validate Tiff identification number
+      val tiffIdNumber = byteReader.getChar
+      if (tiffIdNumber != 42 && tiffIdNumber != 43)
+        throw new MalformedGeoTiffException(s"bad identification number (must be 42 or 43, was $tiffIdNumber (${tiffIdNumber.toInt}))")
 
-    val decompressor = Decompressor(tiffTags, byteReader.order)
+      val tiffTags =
+        if (tiffIdNumber == 42) {
+          val smallStart = byteReader.getInt
+          TiffTagsReader.read(byteReader, smallStart.toLong)(IntTiffTagOffsetSize)
+        } else {
+          byteReader.position(8)
+          val bigStart = byteReader.getLong
+          TiffTagsReader.read(byteReader, bigStart)(LongTiffTagOffsetSize)
+        }
 
-    val storageMethod: StorageMethod =
-      if(tiffTags.hasStripStorage) {
-        val rowsPerStrip: Int =
-          (tiffTags
-            &|-> TiffTags._basicTags
-            ^|-> BasicTags._rowsPerStrip get).toInt
+      val interleaveMethod = tiffTags.interleaveMethod
 
-        Striped(rowsPerStrip)
-      } else {
-        val blockCols =
-          (tiffTags
-            &|-> TiffTags._tileTags
-            ^|-> TileTags._tileWidth get).get.toInt
+      val decompressor = Decompressor(tiffTags, byteReader.order)
 
-        val blockRows =
-          (tiffTags
-            &|-> TiffTags._tileTags
-            ^|-> TileTags._tileLength get).get.toInt
+      val storageMethod: StorageMethod =
+        if(tiffTags.hasStripStorage) {
+          val rowsPerStrip: Int =
+            (tiffTags
+              &|-> TiffTags._basicTags
+              ^|-> BasicTags._rowsPerStrip get).toInt
 
-        Tiled(blockCols, blockRows)
-      }
+          Striped(rowsPerStrip)
+        } else {
+          val blockCols =
+            (tiffTags
+              &|-> TiffTags._tileTags
+              ^|-> TileTags._tileWidth get).get.toInt
 
-    val cols = tiffTags.cols
-    val rows = tiffTags.rows
-    val bandType = tiffTags.bandType
-    val bandCount = tiffTags.bandCount
+          val blockRows =
+            (tiffTags
+              &|-> TiffTags._tileTags
+              ^|-> TileTags._tileLength get).get.toInt
 
-    val segmentLayout = GeoTiffSegmentLayout(cols, rows, storageMethod, interleaveMethod, bandType)
+          Tiled(blockCols, blockRows)
+        }
 
-    val segmentBytes: SegmentBytes =
-      if (streaming)
-        LazySegmentBytes(byteReader, tiffTags)
-      else
-        ArraySegmentBytes(byteReader, tiffTags)
+      val cols = tiffTags.cols
+      val rows = tiffTags.rows
+      val bandType = tiffTags.bandType
+      val bandCount = tiffTags.bandCount
 
-    val noDataValue =
-      (tiffTags
-        &|-> TiffTags._geoTiffTags
-        ^|-> GeoTiffTags._gdalInternalNoData get)
+      val segmentLayout = GeoTiffSegmentLayout(cols, rows, storageMethod, interleaveMethod, bandType)
 
-    // If the GeoTiff is coming is as uncompressed, leave it as uncompressed.
-    // If it's any sort of compression, move forward with ZLib compression.
-    val compression =
+      val segmentBytes: SegmentBytes =
+        if (streaming)
+          LazySegmentBytes(byteReader, tiffTags)
+        else
+          ArraySegmentBytes(byteReader, tiffTags)
+
+      val noDataValue =
+        (tiffTags
+          &|-> TiffTags._geoTiffTags
+          ^|-> GeoTiffTags._gdalInternalNoData get)
+
+      // If the GeoTiff is coming is as uncompressed, leave it as uncompressed.
+      // If it's any sort of compression, move forward with ZLib compression.
+      val compression =
       decompressor match {
         case NoCompression => NoCompression
         case _ => DeflateCompression
       }
 
-    val colorSpace = tiffTags.basicTags.photometricInterp
+      val colorSpace = tiffTags.basicTags.photometricInterp
 
-    val colorMap = if (colorSpace == ColorSpace.Palette && tiffTags.basicTags.colorMap.nonEmpty) {
-      Option(IndexedColorMap.fromTiffPalette(tiffTags.basicTags.colorMap))
-    } else None
+      val colorMap = if (colorSpace == ColorSpace.Palette && tiffTags.basicTags.colorMap.nonEmpty) {
+        Option(IndexedColorMap.fromTiffPalette(tiffTags.basicTags.colorMap))
+      } else None
 
-    GeoTiffInfo(
-      tiffTags.extent,
-      tiffTags.crs,
-      tiffTags.tags,
-      GeoTiffOptions(storageMethod, interleaveMethod, compression, colorSpace, colorMap),
-      bandType,
-      segmentBytes,
-      decompressor,
-      segmentLayout,
-      compression,
-      bandCount,
-      noDataValue
-    )
+      GeoTiffInfo(
+        tiffTags.extent,
+        tiffTags.crs,
+        tiffTags.tags,
+        GeoTiffOptions(storageMethod, interleaveMethod, compression, colorSpace, colorMap),
+        bandType,
+        segmentBytes,
+        decompressor,
+        segmentLayout,
+        compression,
+        bandCount,
+        noDataValue
+      )
+    } finally {
+      byteReader.position(oldPos)
+    }
   }
 }

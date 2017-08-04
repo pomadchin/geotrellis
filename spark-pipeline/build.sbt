@@ -14,9 +14,12 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser"         % "0.8.0",
   "io.circe" %% "circe-optics"         % "0.8.0",
   "org.typelevel" %% "cats" % "0.9.0",
+  "io.frees" %% "freestyle-tagless" % "0.3.1",
   sparkCore % "provided",
   scalatest % "test"
 )
+
+addCompilerPlugin("org.scalameta" % "paradise" % "3.0.0-M9" cross CrossVersion.full)
 
 test in assembly := {}
 

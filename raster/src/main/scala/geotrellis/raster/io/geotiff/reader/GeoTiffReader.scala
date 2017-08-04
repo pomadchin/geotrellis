@@ -202,7 +202,7 @@ object GeoTiffReader {
     bandCount: Int,
     hasPixelInterleave: Boolean,
     noDataValue: Option[Double]
-  ) {
+  ) extends Serializable {
     def cellType: CellType = (bandType, noDataValue) match {
       case (BitBandType, _) =>
         BitCellType

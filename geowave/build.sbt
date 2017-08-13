@@ -4,43 +4,40 @@ import sbtassembly.PathList
 
 name := "geotrellis-geowave"
 
-def exclusionRule(organization: String, name: String = "", artifact: String = "", configurations: Vector[String] = Vector()) = 
-  ExclusionRule(organization, name, artifact, configurations)
-
 libraryDependencies ++= Seq(
   "org.apache.accumulo" % "accumulo-core" % Version.accumulo
     exclude("org.jboss.netty", "netty")
     exclude("org.apache.hadoop", "hadoop-client"),
   "mil.nga.giat" % "geowave-adapter-raster" % "0.9.3"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "mil.nga.giat" % "geowave-adapter-vector" % "0.9.3"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "mil.nga.giat" % "geowave-core-store" % "0.9.3"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "mil.nga.giat" % "geowave-core-geotime" % "0.9.3"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "mil.nga.giat" % "geowave-datastore-accumulo" % "0.9.3"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   hadoopClient % "provided"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "org.geotools" % "gt-coverage" % Version.geotools % "provided"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "org.geotools" % "gt-epsg-hsql" % Version.geotools % "provided"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "org.geotools" % "gt-main" % Version.geotools % "provided"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "org.geotools" % "gt-referencing" % Version.geotools % "provided"
-    excludeAll(exclusionRule(organization = "org.mortbay.jetty"),
-      exclusionRule(organization = "javax.servlet")),
+    excludeAll(ExclusionRule(organization = "org.mortbay.jetty"),
+      ExclusionRule(organization = "javax.servlet")),
   "com.jsuereth" %% "scala-arm" % "2.0",
   "de.javakaffee" % "kryo-serializers" % "0.38" exclude("com.esotericsoftware", "kryo"),
   "com.esotericsoftware" % "kryo-shaded" % "3.0.3",
@@ -87,3 +84,4 @@ parallelExecution in Test := false
 initialCommands in console :=
   """
   """
+  

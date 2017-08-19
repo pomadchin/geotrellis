@@ -193,5 +193,18 @@ class MultibandGeoTiffReaderSpec extends FunSpec
       tile.band(2).foreach { z => z should be (1) }
     }
 
+
+    it("must read tiff with overviews correct") {
+      val path1 = "/data/OLI/tiff-hsl/175/017/LC81750172014163LGN00_LOW5.TIF"
+      val t1 = MultibandGeoTiff(path1).tags
+      println(t1.bandTags.map(_.toList))
+      println(t1.headTags)
+      println("-----------------------------")
+      val path2 = "/data/OLI/tiff-hsl/175/017/LC81750172014163LGN00_LOW5__2.TIF"
+      val t2 = MultibandGeoTiff(path2).tags
+      println(t2.bandTags.map(_.toList))
+      println(t2.headTags)
+    }
+
   }
 }

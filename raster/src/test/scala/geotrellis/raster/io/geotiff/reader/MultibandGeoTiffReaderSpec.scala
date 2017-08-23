@@ -194,16 +194,29 @@ class MultibandGeoTiffReaderSpec extends FunSpec
     }
 
 
-    it("must read tiff with overviews correct") {
-      val path1 = "/data/OLI/tiff-hsl/175/017/LC81750172014163LGN00_LOW5.TIF"
+    it("zz must read tiff with overviews correct") {
+      /*val path1 = "/data/OLI/tiff-hsl/175/017/LC81750172014163LGN00_LOW5.TIF"
       val t1 = MultibandGeoTiff(path1).tags
+      //println(s"t1.raster.cellSize: ${t1.raster.cellSize}")
       println(t1.bandTags.map(_.toList))
       println(t1.headTags)
-      println("-----------------------------")
-      val path2 = "/data/OLI/tiff-hsl/175/017/LC81750172014163LGN00_LOW5__2.TIF"
-      val t2 = MultibandGeoTiff(path2).tags
-      println(t2.bandTags.map(_.toList))
-      println(t2.headTags)
+      println("-----------------------------")*/
+      val path2 = "/data/OLI/tiff-hsl/175/017/LC81750172014163LGN00_LOW5__2__1.TIF"
+      val t2: SinglebandGeoTiff = SinglebandGeoTiff(path2)
+
+      println(s"t2.getOverviewsCount: ${t2.getOverviewsCount}")
+
+      println(s"t2.raster.size: ${t2.raster.cols -> t2.raster.rows}")
+      println(s"t2.crs.toProj4String: ${t2.crs.toProj4String}")
+      (0 until t2.getOverviewsCount) foreach { idx =>
+        val o = t2.getOverview(idx)
+        println(s"o.crs.toProj4String: ${o.crs.toProj4String}")
+        println(s"t2.getOverview($idx).raster.size: ${o.raster.cols -> o.raster.rows}")
+      }
+
+      //t2.write("/tmp/test.tiff")
+      //println(t2.bandTags.map(_.toList))
+      //println(t2.headTags)
     }
 
   }

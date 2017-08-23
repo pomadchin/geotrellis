@@ -105,8 +105,6 @@ object TiffTagsReader {
       case None =>
     }
 
-    println(s"tiffTags: ${tiffTags}")
-
     tiffTags
   }
 

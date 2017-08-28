@@ -32,9 +32,20 @@ case class GeoTiffOptions(
   compression: Compression,
   colorSpace: Int,
   colorMap: Option[IndexedColorMap],
-  interleaveMethod: InterleaveMethod
+  interleaveMethod: InterleaveMethod,
+  subfileType: Option[NewSubfileType],
+  tiffType: TiffType
 ) {
-  def this() = this(GeoTiffOptions.DEFAULT.storageMethod, GeoTiffOptions.DEFAULT.compression, GeoTiffOptions.DEFAULT.colorSpace, GeoTiffOptions.DEFAULT.colorMap, GeoTiffOptions.DEFAULT.interleaveMethod)
+  def this() =
+    this(
+      GeoTiffOptions.DEFAULT.storageMethod,
+      GeoTiffOptions.DEFAULT.compression,
+      GeoTiffOptions.DEFAULT.colorSpace,
+      GeoTiffOptions.DEFAULT.colorMap,
+      GeoTiffOptions.DEFAULT.interleaveMethod,
+      GeoTiffOptions.DEFAULT.subfileType,
+      GeoTiffOptions.DEFAULT.tiffType
+    )
 
   def this(
     storageMethod: StorageMethod,
@@ -46,7 +57,9 @@ case class GeoTiffOptions(
     compression,
     colorSpace,
     colorMap,
-    GeoTiffOptions.DEFAULT.interleaveMethod
+    GeoTiffOptions.DEFAULT.interleaveMethod,
+    GeoTiffOptions.DEFAULT.subfileType,
+    GeoTiffOptions.DEFAULT.tiffType
   )
 
   def this(
@@ -58,7 +71,9 @@ case class GeoTiffOptions(
     compression,
     GeoTiffOptions.DEFAULT.colorSpace,
     GeoTiffOptions.DEFAULT.colorMap,
-    interleaveMethod
+    interleaveMethod,
+    GeoTiffOptions.DEFAULT.subfileType,
+    GeoTiffOptions.DEFAULT.tiffType
   )
 }
 
@@ -66,7 +81,7 @@ case class GeoTiffOptions(
  * The companion object to [[GeoTiffOptions]]
  */
 object GeoTiffOptions {
-  val DEFAULT = GeoTiffOptions(Striped, NoCompression, ColorSpace.BlackIsZero, None, BandInterleave)
+  val DEFAULT = GeoTiffOptions(Striped, NoCompression, ColorSpace.BlackIsZero, None, BandInterleave, None, Tiff)
 
   def apply(): GeoTiffOptions = DEFAULT
 

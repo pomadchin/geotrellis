@@ -25,7 +25,7 @@ import geotrellis.raster.io.geotiff.util._
 /**
   * LazySegmentBytes represents a lazy GeoTiff segments reader
   *
-  * TODO: Use default parameters instead of constructor overloads
+  * TODO: Use default parameters instead of constructor overloads in GeoTrellis 2.0
   *
   * @param byteReader
   * @param tiffTags

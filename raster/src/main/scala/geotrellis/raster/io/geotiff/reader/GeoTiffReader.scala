@@ -353,7 +353,7 @@ object GeoTiffReader {
         tiffTags.extent,
         tiffTags.crs,
         tiffTags.tags,
-        GeoTiffOptions(storageMethod, interleaveMethod, compression, colorSpace, colorMap),
+        GeoTiffOptions(storageMethod, compression, colorSpace, colorMap, interleaveMethod),
         bandType,
         segmentBytes,
         decompressor,

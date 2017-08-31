@@ -24,20 +24,61 @@ import geotrellis.raster.render.IndexedColorMap
   * This case class holds information about how the data is stored in
   * a [[GeoTiff]]. If no values are given directly, then the defaults
   * are used.
+  *
+  * TODO: Use default parameters instead of constructor overloads in GeoTrellis 2.0
   */
 case class GeoTiffOptions(
-  storageMethod: StorageMethod = GeoTiffOptions.DEFAULT.storageMethod,
-  interleaveMethod: InterleaveMethod = GeoTiffOptions.DEFAULT.interleaveMethod,
-  compression: Compression = GeoTiffOptions.DEFAULT.compression,
-  colorSpace: Int = GeoTiffOptions.DEFAULT.colorSpace,
-  colorMap: Option[IndexedColorMap] = GeoTiffOptions.DEFAULT.colorMap
-)
+  storageMethod: StorageMethod,
+  compression: Compression,
+  colorSpace: Int,
+  colorMap: Option[IndexedColorMap],
+  interleaveMethod: InterleaveMethod
+) {
+  def this() = this(GeoTiffOptions.DEFAULT.storageMethod, GeoTiffOptions.DEFAULT.compression, GeoTiffOptions.DEFAULT.colorSpace, GeoTiffOptions.DEFAULT.colorMap, GeoTiffOptions.DEFAULT.interleaveMethod)
+
+  def this(
+    storageMethod: StorageMethod,
+    compression: Compression,
+    colorSpace: Int,
+    colorMap: Option[IndexedColorMap]
+   ) = this(
+    storageMethod,
+    compression,
+    colorSpace,
+    colorMap,
+    GeoTiffOptions.DEFAULT.interleaveMethod
+  )
+
+  def this(
+    storageMethod: StorageMethod,
+    compression: Compression,
+    interleaveMethod: InterleaveMethod
+  ) = this(
+    storageMethod,
+    compression,
+    GeoTiffOptions.DEFAULT.colorSpace,
+    GeoTiffOptions.DEFAULT.colorMap,
+    interleaveMethod
+  )
+}
 
 /**
  * The companion object to [[GeoTiffOptions]]
  */
 object GeoTiffOptions {
-  val DEFAULT = GeoTiffOptions(Striped, BandInterleave, NoCompression, ColorSpace.BlackIsZero, None)
+  val DEFAULT = GeoTiffOptions(Striped, NoCompression, ColorSpace.BlackIsZero, None, BandInterleave)
+
+  def apply(): GeoTiffOptions = DEFAULT
+
+  def apply(
+    storageMethod: StorageMethod,
+    compression: Compression,
+    colorSpace: Int,
+    colorMap: Option[IndexedColorMap]
+  ): GeoTiffOptions = new GeoTiffOptions(storageMethod, compression, colorSpace, colorMap)
+
+  def apply(storageMethod: StorageMethod, compression: Compression, interleaveMethod: InterleaveMethod): GeoTiffOptions =
+    new GeoTiffOptions(storageMethod, compression, interleaveMethod)
 
   /**
    * Creates a new instance of [[GeoTiffOptions]] with the given

@@ -28,54 +28,14 @@ import geotrellis.raster.render.IndexedColorMap
   * TODO: Use default parameters instead of constructor overloads in GeoTrellis 2.0
   */
 case class GeoTiffOptions(
-  storageMethod: StorageMethod,
-  compression: Compression,
-  colorSpace: Int,
-  colorMap: Option[IndexedColorMap],
-  interleaveMethod: InterleaveMethod,
-  subfileType: Option[NewSubfileType],
-  tiffType: TiffType
-) {
-  def this() =
-    this(
-      GeoTiffOptions.DEFAULT.storageMethod,
-      GeoTiffOptions.DEFAULT.compression,
-      GeoTiffOptions.DEFAULT.colorSpace,
-      GeoTiffOptions.DEFAULT.colorMap,
-      GeoTiffOptions.DEFAULT.interleaveMethod,
-      GeoTiffOptions.DEFAULT.subfileType,
-      GeoTiffOptions.DEFAULT.tiffType
-    )
-
-  def this(
-    storageMethod: StorageMethod,
-    compression: Compression,
-    colorSpace: Int,
-    colorMap: Option[IndexedColorMap]
-   ) = this(
-    storageMethod,
-    compression,
-    colorSpace,
-    colorMap,
-    GeoTiffOptions.DEFAULT.interleaveMethod,
-    GeoTiffOptions.DEFAULT.subfileType,
-    GeoTiffOptions.DEFAULT.tiffType
-  )
-
-  def this(
-    storageMethod: StorageMethod,
-    compression: Compression,
-    interleaveMethod: InterleaveMethod
-  ) = this(
-    storageMethod,
-    compression,
-    GeoTiffOptions.DEFAULT.colorSpace,
-    GeoTiffOptions.DEFAULT.colorMap,
-    interleaveMethod,
-    GeoTiffOptions.DEFAULT.subfileType,
-    GeoTiffOptions.DEFAULT.tiffType
-  )
-}
+  storageMethod: StorageMethod = GeoTiffOptions.DEFAULT.storageMethod,
+  compression: Compression = GeoTiffOptions.DEFAULT.compression,
+  colorSpace: Int = GeoTiffOptions.DEFAULT.colorSpace,
+  colorMap: Option[IndexedColorMap] = GeoTiffOptions.DEFAULT.colorMap,
+  interleaveMethod: InterleaveMethod = GeoTiffOptions.DEFAULT.interleaveMethod,
+  subfileType: Option[NewSubfileType] = GeoTiffOptions.DEFAULT.subfileType,
+  tiffType: TiffType = GeoTiffOptions.DEFAULT.tiffType
+)
 
 /**
  * The companion object to [[GeoTiffOptions]]
@@ -93,7 +53,7 @@ object GeoTiffOptions {
   ): GeoTiffOptions = new GeoTiffOptions(storageMethod, compression, colorSpace, colorMap)
 
   def apply(storageMethod: StorageMethod, compression: Compression, interleaveMethod: InterleaveMethod): GeoTiffOptions =
-    new GeoTiffOptions(storageMethod, compression, interleaveMethod)
+    new GeoTiffOptions(storageMethod, compression, interleaveMethod = interleaveMethod)
 
   /**
    * Creates a new instance of [[GeoTiffOptions]] with the given

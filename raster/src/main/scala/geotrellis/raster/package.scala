@@ -31,6 +31,7 @@ package object raster
     with merge.Implicits
     with reproject.Implicits
     with split.Implicits
+    with summary.polygonal.Implicits
     with transform.Implicits {
   type CellType = DataType with NoDataHandling
   type SinglebandRaster = Raster[Tile]
@@ -68,11 +69,12 @@ package object raster
       with render.ColorMethods
       with render.JpgRenderMethods
       with render.PngRenderMethods
+      with render.AsciiRenderMethods
       with reproject.SinglebandTileReprojectMethods
       with resample.SinglebandTileResampleMethods
       with sigmoidal.SinglebandSigmoidalMethods
       with split.SinglebandTileSplitMethods
-      with summary.polygonal.PolygonalSummaryMethods
+      //with summary.polygonal.PolygonalSummaryMethods
       with summary.SinglebandTileSummaryMethods
       with vectorize.VectorizeMethods
       with viewshed.ViewshedMethods

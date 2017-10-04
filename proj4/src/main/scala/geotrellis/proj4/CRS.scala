@@ -17,12 +17,20 @@
 package geotrellis.proj4
 
 import geotrellis.proj4.io.wkt.WKT
+
 import org.osgeo.proj4j._
+import com.github.blemale.scaffeine.Scaffeine
 
 import scala.io.Source
 
+
 object CRS {
-  private lazy val proj4ToEpsgMap = new Memoize[String, Option[String]](readEpsgCodeFromFile)
+  private lazy val proj4ToEpsgMap =
+    Scaffeine()
+      .recordStats()
+      .build[String, Option[String]]()
+
+  //  new Memoize[String, Option[String]](readEpsgCodeFromFile)
   private val crsFactory = new CRSFactory
   private val filePrefix = "/geotrellis/proj4/nad/"
 
@@ -40,7 +48,7 @@ object CRS {
     */
   def fromString(proj4Params: String): CRS =
     new CRS {
-      val proj4jCrs = crsFactory.createFromParameters(null, proj4Params)
+      val proj4jCrs: CoordinateReferenceSystem = crsFactory.createFromParameters(null, proj4Params)
 
       def epsgCode: Option[Int] = getEpsgCode(toProj4String + " <>")
     }
@@ -49,7 +57,7 @@ object CRS {
     * Returns the numeric EPSG code of a proj4string.
     */
   def getEpsgCode(proj4String: String): Option[Int] =
-    proj4ToEpsgMap(proj4String).map(_.toInt)
+    proj4ToEpsgMap.get(proj4String, { key => readEpsgCodeFromFile(key) }).map(_.toInt)
 
   /**
     * Creates a CoordinateReferenceSystem
@@ -66,7 +74,7 @@ object CRS {
     */
   def fromString(name: String, proj4Params: String): CRS =
     new CRS {
-      val proj4jCrs = crsFactory.createFromParameters(name, proj4Params)
+      val proj4jCrs: CoordinateReferenceSystem = crsFactory.createFromParameters(name, proj4Params)
 
       def epsgCode: Option[Int] = getEpsgCode(toProj4String + " <>")
     }
@@ -108,7 +116,7 @@ object CRS {
    */
   def fromName(name: String): CRS =
     new CRS {
-      val proj4jCrs = crsFactory.createFromName(name)
+      val proj4jCrs: CoordinateReferenceSystem = crsFactory.createFromName(name)
 
       def epsgCode: Option[Int] = getEpsgCode(toProj4String + " <>")
     }
@@ -137,6 +145,11 @@ object CRS {
     } finally {
       stream.close()
     }
+  }
+
+  /** Mix-in for singleton CRS implementations where distinguished string should be the name of the object. */
+  private[proj4] trait ObjectNameToString { self: CRS ⇒
+    override def toString: String = self.getClass.getSimpleName.replaceAllLiterally("$", "")
   }
 }
 
@@ -214,4 +227,7 @@ trait CRS extends Serializable {
   }
 
   protected def factory = CRS.crsFactory
+
+  /** Default implementation returns the proj4 name. */
+  override def toString: String = this.proj4jCrs.getName
 }

@@ -88,7 +88,7 @@ class LayerQuerySpec extends FunSpec
       Point(-125.0, 60.0)))
 
     def naiveKeys(polygon: MultiPolygon): List[SpatialKey] = {
-      (for ((x, y) <- bounds.coords
+      (for ((x, y) <- bounds.coordsIter.toSeq
         if polygon.intersects(md.mapTransform(SpatialKey(x, y)))) yield SpatialKey(x, y))
         .toList
     }
@@ -96,6 +96,14 @@ class LayerQuerySpec extends FunSpec
     it("should find all keys that intersect appreciably with a horizontal rectangle") {
       val polygon = horizontal
       val query = new LayerQuery[SpatialKey, TileLayerMetadata[SpatialKey]].where(Intersects(polygon))
+      val actual = query(md).flatMap(spatialKeyBoundsKeys)
+      val expected = naiveKeys(polygon)
+      (expected diff actual) should be ('empty)
+    }
+
+    it("should find all keys that intersect appreciably with a horizontal rectangle that is in the same projection") {
+      val polygon = horizontal
+      val query = new LayerQuery[SpatialKey, TileLayerMetadata[SpatialKey]].where(Intersects(polygon -> md.crs))
       val actual = query(md).flatMap(spatialKeyBoundsKeys)
       val expected = naiveKeys(polygon)
       (expected diff actual) should be ('empty)
@@ -109,9 +117,27 @@ class LayerQuerySpec extends FunSpec
       (expected diff actual) should be ('empty)
     }
 
+    it("should find all keys that intersect appreciably with a vertical rectangle that is in a different projection") {
+      val polyCRS = CRS.fromEpsgCode(2033)
+      val polygon = vertical.reproject(md.crs, polyCRS)
+      val query = new LayerQuery[SpatialKey, TileLayerMetadata[SpatialKey]].where(Intersects(polygon -> polyCRS))
+      val actual = query(md).flatMap(spatialKeyBoundsKeys)
+      val expected = naiveKeys(polygon)
+      (expected diff actual) should be ('empty)
+    }
+
     it("should find all keys that intersect appreciably with an L-shaped polygon") {
       val polygon = MultiPolygon(List(horizontal, vertical))
       val query = new LayerQuery[SpatialKey, TileLayerMetadata[SpatialKey]].where(Intersects(polygon))
+      val actual = query(md).flatMap(spatialKeyBoundsKeys)
+      val expected = naiveKeys(polygon)
+      (expected diff actual) should be ('empty)
+    }
+
+    it("should find all keys that intersect appreciably with an L-shaped polygon that is in a differet projection") {
+      val polyCRS = CRS.fromEpsgCode(2023)
+      val polygon = MultiPolygon(List(horizontal, vertical)).reproject(md.crs, polyCRS)
+      val query = new LayerQuery[SpatialKey, TileLayerMetadata[SpatialKey]].where(Intersects(polygon -> polyCRS))
       val actual = query(md).flatMap(spatialKeyBoundsKeys)
       val expected = naiveKeys(polygon)
       (expected diff actual) should be ('empty)
@@ -142,7 +168,7 @@ class LayerQuerySpec extends FunSpec
       val expected =  {
         val bounds = huc10LayerMetadata.bounds.get.toGridBounds
         for {
-          (x, y) <- bounds.coords
+          (x, y) <- bounds.coordsIter.toSeq
           if huc10.intersects(mapTransform(SpatialKey(x, y)))
         } yield SpatialKey(x, y)
       }
@@ -172,7 +198,7 @@ class LayerQuerySpec extends FunSpec
       val expected =  {
         val bounds = huc10LayerMetadata.bounds.get.toGridBounds
         for {
-          (x, y) <- bounds.coords
+          (x, y) <- bounds.coordsIter.toSeq
           //
           if ml.intersects(mapTransform(SpatialKey(x, y)))
         } yield SpatialKey(x, y)
@@ -189,7 +215,7 @@ class LayerQuerySpec extends FunSpec
     it("should generate KeyBounds for single region") {
       val bounds1 = GridBounds(1, 1, 3, 2)
       val query = new LayerQuery[SpatialKey, TileLayerMetadata[SpatialKey]].where(Intersects(bounds1))
-      val expected = for ((x, y) <- bounds1.coords) yield SpatialKey(x, y)
+      val expected = for ((x, y) <- bounds1.coordsIter.toSeq) yield SpatialKey(x, y)
 
       val found = query(md).flatMap(spatialKeyBoundsKeys)
       info(s"missing: ${(expected diff found).toList}")
@@ -202,7 +228,7 @@ class LayerQuerySpec extends FunSpec
       val bounds1 = GridBounds(1, 1, 3, 3)
       val bounds2 = GridBounds(4, 5, 6, 6)
       val query = new LayerQuery[SpatialKey, TileLayerMetadata[SpatialKey]].where(Intersects(bounds1) or Intersects(bounds2))
-      val expected = for ((x, y) <- bounds1.coords ++ bounds2.coords) yield SpatialKey(x, y)
+      val expected = for ((x, y) <- bounds1.coordsIter.toSeq ++ bounds2.coordsIter.toSeq) yield SpatialKey(x, y)
 
       val found = query(md).flatMap(spatialKeyBoundsKeys)
       info(s"missing: ${(expected diff found).toList}")

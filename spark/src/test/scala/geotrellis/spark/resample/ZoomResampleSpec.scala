@@ -33,7 +33,7 @@ class ZoomResampleMethodsSpec extends FunSpec
 
 
   describe("Zoom Resample on TileLayerRDD - aspect.tif") {
-    val path = "raster-test/data/aspect.tif"
+    val path = "raster/data/aspect.tif"
     val gt = SinglebandGeoTiff(path)
     val originalRaster = gt.raster.resample(500, 500)
     val (_, rdd) = createTileLayerRDD(originalRaster, 5, 5, gt.crs)
@@ -56,7 +56,7 @@ class ZoomResampleMethodsSpec extends FunSpec
       val gridBounds = rdd.metadata.bounds.get.toGridBounds
       val resampledGridBounds = resampled.metadata.bounds.get.toGridBounds
 
-      resampledGridBounds.size should be (gridBounds.size * 4)
+      resampledGridBounds.sizeLong should be (gridBounds.sizeLong * 4)
     }
   }
 

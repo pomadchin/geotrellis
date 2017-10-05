@@ -9,6 +9,9 @@ lazy val commonSettings = Seq(
   organization := "org.locationtech.geotrellis",
   licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.html")),
   homepage := Some(url(Info.url)),
+  scmInfo := Some(ScmInfo(
+    url("https://github.com/locationtech/geotrellis"), "scm:git:git@github.com:locationtech/geotrellis.git"
+  )),
   scalacOptions ++= Seq(
     "-deprecation",
     "-unchecked",
@@ -44,22 +47,18 @@ lazy val commonSettings = Seq(
   addCompilerPlugin("org.scalamacros" %% "paradise" % "2.1.0" cross CrossVersion.full),
 
   pomExtra := (
-    <scm>
-      <url>git@github.com:geotrellis/geotrellis.git</url>
-      <connection>scm:git:git@github.com:geotrellis/geotrellis.git</connection>
-      </scm>
-      <developers>
+    <developers>
       <developer>
-      <id>echeipesh</id>
-      <name>Eugene Cheipesh</name>
-      <url>http://github.com/echeipesh/</url>
-        </developer>
+        <id>echeipesh</id>
+        <name>Eugene Cheipesh</name>
+        <url>http://github.com/echeipesh/</url>
+      </developer>
       <developer>
-      <id>lossyrob</id>
-      <name>Rob Emanuele</name>
-      <url>http://github.com/lossyrob/</url>
-        </developer>
-      </developers>),
+        <id>lossyrob</id>
+        <name>Rob Emanuele</name>
+        <url>http://github.com/lossyrob/</url>
+      </developer>
+    </developers>),
   shellPrompt := { s => Project.extract(s).currentProject.id + " > " },
   dependencyUpdatesExclusions := moduleFilter(organization = "org.scala-lang"),
 
@@ -85,10 +84,8 @@ lazy val root = Project("geotrellis", file(".")).
     macros,
     proj4,
     raster,
-    `raster-test`,
     `raster-testkit`,
     s3,
-    `s3-test`,
     `s3-testkit`,
     shapefile,
     slick,
@@ -97,7 +94,6 @@ lazy val root = Project("geotrellis", file(".")).
     `spark-testkit`,
     util,
     vector,
-    `vector-test`,
     `vector-testkit`,
     vectortile
   ).
@@ -124,13 +120,12 @@ lazy val vectortile = project
 lazy val vector = project
   .dependsOn(proj4, util)
   .settings(commonSettings)
-
-lazy val `vector-test` = project
-  .dependsOn(vector, `vector-testkit`)
-  .settings(commonSettings)
+  .settings(
+    unmanagedClasspath in Test ++= (fullClasspath in (LocalProject("vector-testkit"), Compile)).value
+  )
 
 lazy val `vector-testkit` = project
-  .dependsOn(raster, vector)
+  .dependsOn(raster % "provided", vector % "provided")
   .settings(commonSettings)
 
 lazy val proj4 = project
@@ -140,13 +135,15 @@ lazy val proj4 = project
 lazy val raster = project
   .dependsOn(util, macros, vector)
   .settings(commonSettings)
-
-lazy val `raster-test` = project
-  .dependsOn(raster, `raster-testkit`, `vector-testkit`)
-  .settings(commonSettings)
+  .settings(
+    unmanagedClasspath in Test ++= (fullClasspath in (LocalProject("raster-testkit"), Compile)).value
+  )
+  .settings(
+    unmanagedClasspath in Test ++= (fullClasspath in (LocalProject("vector-testkit"), Compile)).value
+  )
 
 lazy val `raster-testkit` = project
-  .dependsOn(raster, vector)
+  .dependsOn(raster % "provided", vector % "provided")
   .settings(commonSettings)
 
 lazy val slick = project
@@ -168,16 +165,14 @@ lazy val `spark-testkit` = project
   .settings(commonSettings)
 
 lazy val s3 = project
-  .dependsOn(spark)
-  .settings(commonSettings)
-
-lazy val `s3-test` = project
   .dependsOn(
-    s3, `s3-testkit`,
-    spark % "compile->compile;test->test", // <-- spark-testkit update should simplify this
-    `spark-testkit`
+    spark % "compile->compile;test->test",  // <-- spark-testkit update should simplify this
+    `spark-testkit` % "test"
   )
   .settings(commonSettings)
+  .settings(
+    unmanagedClasspath in Test ++= (fullClasspath in (LocalProject("s3-testkit"), Compile)).value
+  )
 
 lazy val `s3-testkit` = project
   .dependsOn(s3, spark)
@@ -211,7 +206,7 @@ lazy val `spark-etl` = Project(id = "spark-etl", base = file("spark-etl")).
 
 lazy val geotools = project
   .dependsOn(raster, vector, proj4, `vector-testkit` % "test", `raster-testkit` % "test",
-    `raster-test` % "test->test" // <-- to get rid  of this, move `GeoTiffTestUtils` to the testkit.
+    `raster` % "test->test" // <-- to get rid  of this, move `GeoTiffTestUtils` to the testkit.
   )
   .settings(commonSettings)
 
@@ -235,4 +230,8 @@ lazy val util = project
 
 lazy val `doc-examples` = project
   .dependsOn(spark, s3, accumulo, cassandra, hbase, spark, `spark-testkit`)
+  .settings(commonSettings)
+
+lazy val bench = project
+  .dependsOn(spark)
   .settings(commonSettings)

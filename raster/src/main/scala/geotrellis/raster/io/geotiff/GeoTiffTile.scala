@@ -723,6 +723,8 @@ abstract class GeoTiffTile(
     val tile = ArrayTile.empty(cellType, bounds.width, bounds.height)
     val intersectingSegments = getIntersectingSegments(bounds)
 
+    println(s"intersectingSegments: ${intersectingSegments.toList}")
+
     getSegments(intersectingSegments).foreach { case (segmentId, segment) =>
       val segmentBounds = getGridBounds(segmentId)
       val segmentTransform = getSegmentTransform(segmentId)

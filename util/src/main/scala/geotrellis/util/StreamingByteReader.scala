@@ -16,7 +16,8 @@
 
 package geotrellis.util
 
-import java.nio.{ByteOrder, ByteBuffer}
+import java.nio.{ByteBuffer, ByteOrder}
+import java.util
 
 /**
   * This class extends [[ByteReader]] who's source of bytes is from a
@@ -37,13 +38,20 @@ class StreamingByteReader(rangeReader: RangeReader, chunkSize: Int = 65536) exte
   class Chunk(val offset: Long, val length: Int, _data: () => Array[Byte]) {
     private var loadedData: Option[Array[Byte]] = None
     def data: Array[Byte] = {
-      loadedData match {
+      //println("data started")
+      val r = loadedData match {
         case Some(d) => d
         case None =>
+          println(s"_data() s")
           val d = _data()
+          /*println(s"_data() f")
+          println(s"loadedData s")*/
           loadedData = Some(d)
+          //println(s"loadedData f")
           d
       }
+      //println("data finished")
+      r
     }
     lazy val buffer: ByteBuffer = ByteBuffer.wrap(data).order(_byteOrder)
 
@@ -93,9 +101,12 @@ class StreamingByteReader(rangeReader: RangeReader, chunkSize: Int = 65536) exte
   }
 
   def getBytes(length: Int): Array[Byte] = {
-    if (chunk.bufferPosition + length > chunk.length)
+    if (chunk.bufferPosition + length > chunk.length) {
+      //println("adjust")
       adjustChunk(position, length)
-    chunk.data.slice(chunk.bufferPosition, chunk.bufferPosition + length)
+      //println("adjust finished")
+    }
+    util.Arrays.copyOfRange(chunk.data, chunk.bufferPosition, chunk.bufferPosition + length)
   }
 
   def get: Byte = {

@@ -25,16 +25,26 @@ case class SinglebandGeoTiffCollectionLayerReader(
   getS3Client: () => S3Client = () => S3Client.DEFAULT
 ) {
 
+  def timedCreate[T](endMsg: String)(f: => T): T = {
+    val s = System.currentTimeMillis
+    val result = f
+    val e = System.currentTimeMillis
+    val t = "%,d".format(e - s)
+    println(s"\t$endMsg (in $t ms)")
+    result
+  }
+
   val rseq = seq.map { case (k, uri) =>
-    val auri = new AmazonS3URI(uri)
-    println(s"fetching $uri raster...")
+    timedCreate(s"fetching $uri") {
+      val auri = new AmazonS3URI(uri)
 
-    val rr = S3RangeReader(auri.getBucket, auri.getKey, getS3Client())
+      val rr = S3RangeReader(auri.getBucket, auri.getKey, getS3Client())
 
-    val tiffInfo: GeoTiffReader.GeoTiffInfo = GeoTiffReader.readGeoTiffInfo(rr, false, true)
-    val tiffTags = TiffTagsReader.read(rr)
+      val tiffInfo: GeoTiffReader.GeoTiffInfo = GeoTiffReader.readGeoTiffInfo(rr, false, true)
+      val tiffTags = TiffTagsReader.read(rr)
 
-    (k, uri, tiffInfo, tiffTags)
+      (k, uri, tiffInfo, tiffTags)
+    }
   }
 
   def read(layerId: LayerId)(x: Int, y: Int): Raster[Tile] = {
@@ -83,7 +93,10 @@ case class SinglebandGeoTiffCollectionLayerReader(
             .intersection(reprojectedKeyExtent)
             .getOrElse(reprojectedKeyExtent)
 
-        val craster = Raster(raster.crop(info.extent, ext), ext).resample(RasterExtent(ext, layout.cellSize), NearestNeighbor)
+        val craster =
+          timedCreate(s"cropping $uri") {
+            Raster(raster.crop(info.extent, ext), ext).resample(RasterExtent(ext, layout.cellSize), NearestNeighbor)
+          }
         println(s"cropped $uri raster...")
 
         println(s"reprojecting $uri raster...")

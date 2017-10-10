@@ -194,6 +194,15 @@ val craster = raster
 
     }
 
+    def timedCreate[T](endMsg: String)(f: => T): T = {
+        val s = System.currentTimeMillis
+        val result = f
+        val e = System.currentTimeMillis
+        val t = "%,d".format(e - s)
+        println(s"\t$endMsg (in $t ms)")
+        result
+    }
+
     it ("ZLC82") {
       val geoTiffLayer =
         SinglebandGeoTiffCollectionLayerReader
@@ -206,7 +215,8 @@ val craster = raster
       // 9/381/223
       // 9))(380, 225) -- normal
       //val t = geoTiffLayer.read(LayerId("LC08_L1TP_139045_20170304_20170316_01_T1_B4", 9))(381, 223)
-      geoTiffLayer.read(LayerId("LC08_L1TP_139045_20170304_20170316_01_T1_B4", 9))(380, 224)
+
+      timedCreate("Read finished")(geoTiffLayer.read(LayerId("LC08_L1TP_139045_20170304_20170316_01_T1_B4", 9))(380, 224))
       //t.tile.renderPng().write("/tmp/test.png")
     }
   }

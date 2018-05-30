@@ -524,15 +524,18 @@ abstract class GeoTiffMultibandTile(
     * Converts the GeoTiffMultibandTile to an
     * [[ArrayMultibandTile]] */
   def toArrayTile(): ArrayMultibandTile =
-    crop(this.gridBounds)
+    crop(this.gridBounds).get
 
   /**
    * Crop this tile to given pixel region.
    *
    * @param gridBounds Pixel bounds specifying the crop area.
    */
- def crop(gridBounds: GridBounds): ArrayMultibandTile =
-  crop(List(gridBounds)).next._2
+ def crop(gridBounds: GridBounds): Option[ArrayMultibandTile] = {
+   val iter = crop(List(gridBounds))
+   if(iter.hasNext) Some(crop(List(gridBounds)).next._2)
+   else None
+ }
 
   /**
     * Performs a crop  operaiton.

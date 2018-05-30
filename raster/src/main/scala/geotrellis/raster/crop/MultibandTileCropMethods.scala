@@ -31,23 +31,22 @@ trait MultibandTileCropMethods extends TileCropMethods[MultibandTile] {
     * Given a [[GridBounds]] and some cropping options, crop the
     * [[MultibandTile]] and return a new MultibandTile.
     */
-  def crop(gb: GridBounds, options: Options): MultibandTile = {
-    self match {
-      case geotiffTile: GeoTiffMultibandTile =>
-        val cropBounds =
-          if(options.clamp)
-            gb.intersection(self)
-              .getOrElse(throw new GeoAttrsError(s"Grid bounds do not intersect: $self crop $gb"))
-          else
-            gb
-        geotiffTile.crop(cropBounds)
-      case _ =>
-        val croppedBands = Array.ofDim[Tile](self.bandCount)
-        for(b <- 0 until self.bandCount) {
-          croppedBands(b) = self.band(b).crop(gb, options)
-        }
-        ArrayMultibandTile(croppedBands)
-    }
+  def crop(gb: GridBounds, options: Options): Option[MultibandTile] = {
+    if(gb.intersects(self.gridBounds)) {
+      self match {
+        case geotiffTile: GeoTiffMultibandTile =>
+          val cropBounds =
+            if (options.clamp) gb.intersection(self)
+            else Some(gb)
+          cropBounds.flatMap(geotiffTile.crop)
+        case _ =>
+          val croppedBands = Array.ofDim[Option[Tile]](self.bandCount)
+          for (b <- 0 until self.bandCount) {
+            croppedBands(b) = self.band(b).crop(gb, options)
+          }
+          Some(ArrayMultibandTile(croppedBands.flatten))
+      }
+    } else None
   }
 
   /**
@@ -55,6 +54,6 @@ trait MultibandTileCropMethods extends TileCropMethods[MultibandTile] {
     * [[MultibandTile]]), a destination Extent, and a set of Options,
     * return a new MultibandTile.
     */
-  def crop(srcExtent: Extent, extent: Extent, options: Options): MultibandTile =
-    Raster(self, srcExtent).crop(extent, options).tile
+  def crop(srcExtent: Extent, extent: Extent, options: Options): Option[MultibandTile] =
+    Raster(self, srcExtent).crop(extent, options).map(_.tile)
 }

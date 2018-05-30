@@ -38,7 +38,7 @@ class MultibandCropIterator(geoTiff: MultibandGeoTiff,
       if (colCount + 1 > colIterations)
         adjustValues
       
-      val result: MultibandGeoTiff = geoTiff.crop(colMin, rowMin, colMax, rowMax)
+      val result: MultibandGeoTiff = geoTiff.crop(colMin, rowMin, colMax, rowMax).get
       adjustValues
       result
     } else {

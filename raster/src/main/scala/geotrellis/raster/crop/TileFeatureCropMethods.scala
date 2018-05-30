@@ -26,11 +26,11 @@ class TileFeatureCropMethods[
   ](val self: TileFeature[T, D]) extends TileCropMethods[TileFeature[T, D]] {
   import Crop.Options
 
-  def crop(srcExtent: Extent, extent: Extent, options: Options): TileFeature[T, D] =
-    TileFeature(self.tile.crop(srcExtent, extent, options), self.data)
+  def crop(srcExtent: Extent, extent: Extent, options: Options): Option[TileFeature[T, D]] =
+    self.tile.crop(srcExtent, extent, options).map(TileFeature(_, self.data))
 
-  def crop(gb: GridBounds, options: Options): TileFeature[T, D] =
-    TileFeature(self.tile.crop(gb, options), self.data)
+  def crop(gb: GridBounds, options: Options): Option[TileFeature[T, D]] =
+    self.tile.crop(gb, options).map(TileFeature(_, self.data))
 }
 
 class RasterTileFeatureCropMethods[
@@ -39,24 +39,24 @@ class RasterTileFeatureCropMethods[
   ](val self: TileFeature[Raster[T], D]) extends TileCropMethods[TileFeature[Raster[T], D]] {
   import Crop.Options
 
-  def crop(extent: Extent, options: Options): TileFeature[Raster[T], D] = {
-    TileFeature(self.tile.crop(extent, options), self.data)
+  def crop(extent: Extent, options: Options): Option[TileFeature[Raster[T], D]] = {
+    self.tile.crop(extent, options).map(TileFeature(_, self.data))
   }
 
-  def crop(srcExtent: Extent, extent: Extent, options: Options): TileFeature[Raster[T], D] =
-    TileFeature(Raster(self.tile.tile.crop(srcExtent, extent, options), extent), self.data)
+  def crop(srcExtent: Extent, extent: Extent, options: Options): Option[TileFeature[Raster[T], D]] =
+    self.tile.tile.crop(srcExtent, extent, options).map { tile => TileFeature(Raster(tile, extent), self.data) }
 
   /**
     * Given an Extent, produce a cropped [[Raster]].
     */
-  def crop(extent: Extent): TileFeature[Raster[T], D] =
+  def crop(extent: Extent): Option[TileFeature[Raster[T], D]] =
     crop(extent, Options.DEFAULT)
 
   /**
     * Given a [[GridBounds]] and some cropping options, produce a new
     * [[Raster]].
     */
-  def crop(gb: GridBounds, options: Options): TileFeature[Raster[T], D] = {
-    TileFeature(self.tile.crop(gb, options), self.data)
+  def crop(gb: GridBounds, options: Options): Option[TileFeature[Raster[T], D]] = {
+    self.tile.crop(gb, options).map(TileFeature(_, self.data))
   }
 }

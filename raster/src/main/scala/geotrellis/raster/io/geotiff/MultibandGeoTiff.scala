@@ -46,32 +46,30 @@ case class MultibandGeoTiff(
       case _ => tile.toGeoTiffTile(options)
     }
 
-  def crop(subExtent: Extent): MultibandGeoTiff = crop(subExtent, Crop.Options.DEFAULT)
+  def crop(subExtent: Extent): Option[MultibandGeoTiff] = crop(subExtent, Crop.Options.DEFAULT)
 
-  def crop(subExtent: Extent, options: Crop.Options): MultibandGeoTiff = {
-    val raster: Raster[MultibandTile] =
-      this.raster.crop(subExtent, options)
-
-    MultibandGeoTiff(raster, subExtent, this.crs, this.tags, this.options, this.overviews)
+  def crop(subExtent: Extent, options: Crop.Options): Option[MultibandGeoTiff] = {
+    extent.intersection(subExtent).flatMap { ext =>
+      val raster: Option[Raster[MultibandTile]] = this.raster.crop(ext, options)
+      raster.map(MultibandGeoTiff(_, ext, this.crs, this.tags, this.options, this.overviews))
+    }
   }
 
-  def crop(colMax: Int, rowMax: Int): MultibandGeoTiff =
+  def crop(colMax: Int, rowMax: Int): Option[MultibandGeoTiff] =
     crop(0, 0, colMax, rowMax)
 
-  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): MultibandGeoTiff = {
-    val raster: Raster[MultibandTile] =
-      this.raster.crop(colMin, rowMin, colMax, rowMax)
-
-    MultibandGeoTiff(raster, raster._2, this.crs, this.tags, this.options, this.overviews)
+  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): Option[MultibandGeoTiff] = {
+    val raster: Option[Raster[MultibandTile]] = this.raster.crop(colMin, rowMin, colMax, rowMax)
+    raster.map { case Raster(t, e) => MultibandGeoTiff(t, e, this.crs, this.tags, this.options, this.overviews) }
   }
 
-  def crop(gridBounds: GridBounds): MultibandGeoTiff =
+  def crop(gridBounds: GridBounds): Option[MultibandGeoTiff] =
     crop(gridBounds.colMin, gridBounds.rowMin, gridBounds.colMax, gridBounds.rowMax)
 
-  def crop(subExtent: Extent, cellSize: CellSize, resampleMethod: ResampleMethod, strategy: OverviewStrategy): MultibandRaster =
+  def crop(subExtent: Extent, cellSize: CellSize, resampleMethod: ResampleMethod, strategy: OverviewStrategy): Option[MultibandRaster] =
     getClosestOverview(cellSize, strategy)
       .crop(subExtent, Crop.Options(clamp = false))
-      .resample(RasterExtent(subExtent, cellSize), resampleMethod, strategy)
+      .map(_.resample(RasterExtent(subExtent, cellSize), resampleMethod, strategy))
 
   def crop(windows: Seq[GridBounds]): Iterator[(GridBounds, MultibandTile)] = tile match {
     case geotiffTile: GeoTiffMultibandTile => geotiffTile.crop(windows)

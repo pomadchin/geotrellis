@@ -30,27 +30,30 @@ class RasterCropMethods[T <: CellGrid: (? => CropMethods[T])](val self: Raster[T
     * Given an Extent and some cropping options, produce a cropped
     * [[Raster]].
     */
-  def crop(extent: Extent, options: Options): Raster[T] = {
-    val re = RasterExtent(self.tile, self.extent)
-    val gridBounds = re.gridBoundsFor(extent, clamp = options.clamp)
-    val croppedExtent = re.extentFor(gridBounds, clamp = options.clamp)
-    val croppedTile = self._1.crop(gridBounds, options)
-    Raster(croppedTile, croppedExtent)
+  def crop(extent: Extent, options: Options): Option[Raster[T]] = {
+    if(extent.intersects(self.extent)) {
+      val re = RasterExtent(self.tile, self.extent)
+      val gridBounds = re.gridBoundsFor(extent, clamp = options.clamp)
+      val croppedExtent = re.extentFor(gridBounds, clamp = options.clamp)
+      self._1.crop(gridBounds, options).map(Raster(_, croppedExtent))
+    } else None
   }
 
   /**
     * Given an Extent, produce a cropped [[Raster]].
     */
-  def crop(extent: Extent): Raster[T] =
+  def crop(extent: Extent): Option[Raster[T]] =
     crop(extent, Options.DEFAULT)
 
   /**
     * Given a [[GridBounds]] and some cropping options, produce a new
     * [[Raster]].
     */
-  def crop(gb: GridBounds, options: Options): Raster[T] = {
-    val re = RasterExtent(self._2, self._1)
-    val croppedExtent = re.extentFor(gb, clamp = options.clamp)
-    Raster(self._1.crop(gb, options), croppedExtent)
+  def crop(gb: GridBounds, options: Options): Option[Raster[T]] = {
+    if(gb.intersects(self.gridBounds)) {
+      val re = RasterExtent(self._2, self._1)
+      val croppedExtent = re.extentFor(gb, clamp = options.clamp)
+      self._1.crop(gb, options).map(Raster(_, croppedExtent))
+    } else None
   }
 }

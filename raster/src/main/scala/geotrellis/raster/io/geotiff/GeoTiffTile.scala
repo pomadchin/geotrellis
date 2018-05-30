@@ -729,10 +729,10 @@ abstract class GeoTiffTile(
    *
    * @param bounds: Pixel bounds specifying the crop area
    */
-  def crop(bounds: GridBounds): MutableArrayTile = {
+  def crop(bounds: GridBounds): Option[MutableArrayTile] = {
     val iter = crop(List(bounds))
-    if(iter.isEmpty) throw new reader.MalformedGeoTiffException(s"No intersections of ${bounds} vs ${gridBounds}")
-    else iter.next._2
+    if(iter.hasNext) Some(iter.next._2)
+    else None
   }
 
   /**

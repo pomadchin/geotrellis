@@ -30,13 +30,13 @@ trait TileCropMethods[T <: CellGrid] extends CropMethods[T] {
     * Given a source Extent, a destination extent, and some cropping
     * options, produce a cropped [[Tile]].
     */
-  def crop(srcExtent: Extent, extent: Extent, options: Options): T
+  def crop(srcExtent: Extent, extent: Extent, options: Options): Option[T]
 
   /**
     * Given a source Extent and a destination extent produce a cropped
     * [[Tile]].
     */
-  def crop(srcExtent: Extent, extent: Extent): T =
+  def crop(srcExtent: Extent, extent: Extent): Option[T] =
     crop(srcExtent, extent, Options.DEFAULT)
 
 }

@@ -30,44 +30,43 @@ trait CropMethods[T] extends MethodExtensions[T] {
   /**
     * Given a [[GridBounds]] and some cropping options, crop.
     */
-  def crop(gb: GridBounds, options: Options): T
+  def crop(gb: GridBounds, options: Options): Option[T]
 
   /**
     * Given a [[GridBounds]], crop.
     */
-  def crop(gb: GridBounds): T =
+  def crop(gb: GridBounds): Option[T] =
     crop(gb, Options.DEFAULT)
 
   /**
    * Crop out multiple [[GridBounds]] windows.
    */
-  def crop(windows: Seq[GridBounds]): Iterator[(GridBounds, T)] = {
-    windows.toIterator.map { gb => (gb, crop(gb))}
-  }
+  def crop(windows: Seq[GridBounds]): Iterator[(GridBounds, T)] =
+    windows.toIterator.flatMap { gb => crop(gb).map { v => (gb, v) }}
 
   /**
     * Given a number of columns and rows for the desired output and
     * some cropping options, crop.
     */
-  def crop(cols: Int, rows: Int, options: Options): T =
+  def crop(cols: Int, rows: Int, options: Options): Option[T] =
     crop(GridBounds(0, 0, cols - 1, rows - 1), options)
 
   /**
     * Given a number of columns and rows for the desired output, crop.
     */
-  def crop(cols: Int, rows: Int): T =
+  def crop(cols: Int, rows: Int): Option[T] =
     crop(cols, rows, Options.DEFAULT)
 
   /**
     * Given the starting and stopping columns and rows and some
     * cropping options, crop.
     */
-  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int, options: Options): T =
+  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int, options: Options): Option[T] =
     crop(GridBounds(colMin, rowMin, colMax, rowMax), options)
 
   /**
     * Given the starting and stopping columns and rows, crop.
     */
-  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): T =
+  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): Option[T] =
     crop(colMin, rowMin, colMax, rowMax, Options.DEFAULT)
 }

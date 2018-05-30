@@ -49,32 +49,32 @@ case class SinglebandGeoTiff(
       case _ => tile.toGeoTiffTile(options)
     }
 
-  def crop(subExtent: Extent, options: Crop.Options): SinglebandGeoTiff = {
-    val raster: Raster[Tile] =
-      this.raster.crop(subExtent, options)
-
-    SinglebandGeoTiff(raster, subExtent, this.crs, this.tags, this.options, this.overviews)
+  def crop(subExtent: Extent, options: Crop.Options): Option[SinglebandGeoTiff] = {
+    extent.intersection(subExtent).flatMap { ext =>
+      val raster: Option[Raster[Tile]] = this.raster.crop(ext, options)
+      raster.map(SinglebandGeoTiff(_, ext, this.crs, this.tags, this.options, this.overviews))
+    }
   }
 
-  def crop(colMax: Int, rowMax: Int): SinglebandGeoTiff =
+  def crop(colMax: Int, rowMax: Int): Option[SinglebandGeoTiff] =
     crop(0, 0, colMax, rowMax)
 
-  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): SinglebandGeoTiff = {
-    val raster: Raster[Tile] =
-      this.raster.crop(colMin, rowMin, colMax, rowMax)
-
-    SinglebandGeoTiff(raster, raster._2, this.crs, this.tags, this.options, this.overviews)
+  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): Option[SinglebandGeoTiff] = {
+    if(GridBounds(colMin, rowMin, colMax, rowMax).intersects(rasterExtent.gridBounds)) {
+      val raster: Option[Raster[Tile]] = this.raster.crop(colMin, rowMin, colMax, rowMax)
+      raster.map { case Raster(t, e) => SinglebandGeoTiff(t, e, this.crs, this.tags, this.options, this.overviews) }
+    } else None
   }
 
-  def crop(gridBounds: GridBounds): SinglebandGeoTiff =
+  def crop(gridBounds: GridBounds): Option[SinglebandGeoTiff] =
     crop(gridBounds.colMin, gridBounds.rowMin, gridBounds.colMax, gridBounds.rowMax)
   
-  def crop(subExtent: Extent): SinglebandGeoTiff = crop(subExtent, Crop.Options.DEFAULT)
+  def crop(subExtent: Extent): Option[SinglebandGeoTiff] = crop(subExtent, Crop.Options.DEFAULT)
 
-  def crop(subExtent: Extent, cellSize: CellSize, resampleMethod: ResampleMethod, strategy: OverviewStrategy): SinglebandRaster =
+  def crop(subExtent: Extent, cellSize: CellSize, resampleMethod: ResampleMethod, strategy: OverviewStrategy): Option[SinglebandRaster] =
     getClosestOverview(cellSize, strategy)
       .crop(subExtent, Crop.Options(clamp = false))
-      .resample(RasterExtent(subExtent, cellSize), resampleMethod, strategy)
+      .map(_.resample(RasterExtent(subExtent, cellSize), resampleMethod, strategy))
 
   def crop(windows: Seq[GridBounds]): Iterator[(GridBounds, Tile)] = tile match {
     case geotiffTile: GeoTiffTile => geotiffTile.crop(windows)

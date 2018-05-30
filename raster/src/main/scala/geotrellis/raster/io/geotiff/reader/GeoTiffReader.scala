@@ -56,7 +56,7 @@ object GeoTiffReader {
    */
   def readSingleband(path: String, e: Option[Extent]): SinglebandGeoTiff =
     e match {
-      case Some(x) => readSingleband(path, true).crop(x)
+      case Some(x) => readSingleband(path, true).crop(x).get
       case None => readSingleband(path)
     }
 
@@ -94,7 +94,7 @@ object GeoTiffReader {
 
   def readSingleband(byteReader: ByteReader, e: Option[Extent]): SinglebandGeoTiff =
     e match {
-      case Some(x) => readSingleband(byteReader, true).crop(x)
+      case Some(x) => readSingleband(byteReader, true).crop(x).get
       case None => readSingleband(byteReader)
     }
 
@@ -159,7 +159,7 @@ object GeoTiffReader {
    */
   def readMultiband(path: String, e: Option[Extent]): MultibandGeoTiff =
     e match {
-      case Some(x) => readMultiband(path, true).crop(x)
+      case Some(x) => readMultiband(path, true).crop(x).get
       case None => readMultiband(path)
     }
 
@@ -187,7 +187,7 @@ object GeoTiffReader {
 
   def readMultiband(byteReader: ByteReader, e: Option[Extent]): MultibandGeoTiff =
     e match {
-      case Some(x) => readMultiband(byteReader, true).crop(x)
+      case Some(x) => readMultiband(byteReader, true).crop(x).get
       case None => readMultiband(byteReader)
     }
 

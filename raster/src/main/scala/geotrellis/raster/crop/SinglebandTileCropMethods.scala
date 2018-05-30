@@ -30,32 +30,26 @@ trait SinglebandTileCropMethods extends TileCropMethods[Tile] {
     * Given a [[GridBounds]] and some cropping options, produce a new
     * [[Tile]].
     */
-  def crop(gb: GridBounds, options: Options): Tile = {
-    val cropBounds =
-      if(options.clamp)
-        gb.intersection(self) match {
-          case Some(intersection) => intersection
-          case None =>
-            throw new GeoAttrsError(s"Grid bounds do not intersect: $self crop $gb")
+  def crop(gb: GridBounds, options: Options): Option[Tile] = {
+    if(gb.intersects(self.gridBounds)) {
+      val cropBounds =
+        if (options.clamp) gb.intersection(self)
+        else Some(gb)
+
+      val res =
+        self match {
+          case gtTile: GeoTiffTile => gtTile.crop(gb)
+          case _ => cropBounds.map(CroppedTile(self, _))
         }
-      else
-        gb
 
-    val res =
-      self match {
-        case gtTile: GeoTiffTile =>
-          gtTile.crop(gb)
-        case _ =>
-          CroppedTile(self, cropBounds)
-      }
-
-    if(options.force) res.toArrayTile else res
+      if (options.force) res.map(_.toArrayTile) else res
+    } else None
   }
 
   /**
     * Given a source Extent, a destination Extent, and some cropping
     * options, produce a cropped [[Raster]].
     */
-  def crop(srcExtent: Extent, extent: Extent, options: Options): Tile =
-    Raster(self, srcExtent).crop(extent, options).tile
+  def crop(srcExtent: Extent, extent: Extent, options: Options): Option[Tile] =
+    Raster(self, srcExtent).crop(extent, options).map(_.tile)
 }

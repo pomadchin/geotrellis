@@ -38,7 +38,7 @@ class SinglebandCropIterator(geoTiff: SinglebandGeoTiff,
       if (colCount + 1 > colIterations)
         adjustValues
 
-      val result: SinglebandGeoTiff = geoTiff.crop(colMin, rowMin, colMax, rowMax)
+      val result: SinglebandGeoTiff = geoTiff.crop(colMin, rowMin, colMax, rowMax).get
       adjustValues
       result
     } else {

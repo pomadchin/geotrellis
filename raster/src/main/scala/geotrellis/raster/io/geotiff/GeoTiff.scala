@@ -89,15 +89,15 @@ trait GeoTiff[T <: CellGrid] extends GeoTiffData {
   def resample(rasterExtent: RasterExtent, resampleMethod: ResampleMethod, strategy: OverviewStrategy): Raster[T]
 
   /** Chooses the best matching overviews and makes resample & crop */
-  def crop(subExtent: Extent, cellSize: CellSize, resampleMethod: ResampleMethod, strategy: OverviewStrategy): Raster[T]
-  def crop(subExtent: Extent, cellSize: CellSize): Raster[T] = crop(subExtent, cellSize, NearestNeighbor, AutoHigherResolution)
-  def crop(rasterExtent: RasterExtent): Raster[T] = crop(rasterExtent.extent, rasterExtent.cellSize)
+  def crop(subExtent: Extent, cellSize: CellSize, resampleMethod: ResampleMethod, strategy: OverviewStrategy): Option[Raster[T]]
+  def crop(subExtent: Extent, cellSize: CellSize): Option[Raster[T]] = crop(subExtent, cellSize, NearestNeighbor, AutoHigherResolution)
+  def crop(rasterExtent: RasterExtent): Option[Raster[T]] = crop(rasterExtent.extent, rasterExtent.cellSize)
 
-  def crop(subExtent: Extent, options: Crop.Options): GeoTiff[T]
-  def crop(subExtent: Extent): GeoTiff[T]
-  def crop(colMax: Int, rowMax: Int): GeoTiff[T]
-  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): GeoTiff[T]
-  def crop(gridBounds: GridBounds): GeoTiff[T]
+  def crop(subExtent: Extent, options: Crop.Options): Option[GeoTiff[T]]
+  def crop(subExtent: Extent): Option[GeoTiff[T]]
+  def crop(colMax: Int, rowMax: Int): Option[GeoTiff[T]]
+  def crop(colMin: Int, rowMin: Int, colMax: Int, rowMax: Int): Option[GeoTiff[T]]
+  def crop(gridBounds: GridBounds): Option[GeoTiff[T]]
   def crop(windows: Seq[GridBounds]): Iterator[(GridBounds, T)]
 
   /** Return the best matching overview to the given cellSize, returns "this" if no overviews available. */

@@ -68,9 +68,13 @@ trait RasterRegionReproject[T <: CellGrid] extends Serializable {
 }
 
 object RasterRegionReproject {
-  private def rowCoords(destRegion: Polygon, destRasterExtent: RasterExtent, toSrcCrs: Transform): Int => (Array[Int], Array[Double], Array[Double]) = {
+  private def rowCoords(destRegion: Polygon, destRasterExtent: RasterExtent, toSrcCrs: Transform, errorThreshold: Double = 0.125): Int => (Array[Int], Array[Double], Array[Double]) = {
     val extent = destRasterExtent.extent
-    val rowTransform = RowTransform.approximate(toSrcCrs, 0.125)
+    val rowTransform: RowTransform =
+      if (errorThreshold != 0.0)
+        RowTransform.approximate(toSrcCrs, errorThreshold)
+      else
+        RowTransform.exact(toSrcCrs)
 
     def scanlineCols(xmin: Double, xmax: Double): (Array[Int], Array[Double]) = {
       val x0 = ((xmin - extent.xmin) / destRasterExtent.cellwidth + 0.5 - 1e-8).toInt
@@ -187,7 +191,7 @@ object RasterRegionReproject {
     ): Raster[MultibandTile] = {
       val bands = Array.ofDim[MutableArrayTile](raster.tile.bandCount)
       cfor(0)(_ < bands.length, _ + 1) { i =>
-        bands(i) = ArrayTile.empty(raster.tile.band(i).cellType, rasterExtent.cols, rasterExtent.rows)
+        bands(i) = ArrayTile.empty(raster.tile.band(i).cellType, rasterExtent.cols, rasterExtent.rows).mutable
       }
       reprojectToBuffer(raster, src, dest, bands, rasterExtent, region, resampleMethod)
       Raster(MultibandTile(bands), rasterExtent.extent)
@@ -222,8 +226,10 @@ object RasterRegionReproject {
         cfor(0)(_ < rasterExtent.rows, _ + 1){ i =>
           val (pxs, xs, ys) = rowcoords(i)
           cfor(0)(_ < xs.size, _ + 1) { s =>
+            val (x, y) = rasterExtent.gridToMap(pxs(s), i)
+            val (tx, ty) = trans(x, y)
             cfor(0)(_ < buffer.length, _ + 1) { b =>
-              buffer(b).setDouble(pxs(s), i, resampler(b).resampleDouble(xs(s), ys(s)))
+              buffer(b).setDouble(pxs(s), i, resampler(b).resampleDouble(tx, ty))
             }
           }
         }
@@ -231,8 +237,10 @@ object RasterRegionReproject {
         cfor(0)(_ < rasterExtent.rows, _ + 1){ i =>
           val (pxs, xs, ys) = rowcoords(i)
           cfor(0)(_ < xs.size, _ + 1) { s =>
+            val (x, y) = rasterExtent.gridToMap(pxs(s), i)
+            val (tx, ty) = trans(x, y)
             cfor(0)(_ < buffer.length, _ + 1) { b =>
-              buffer(b).set(pxs(s), i, resampler(b).resample(xs(s), ys(s)))
+              buffer(b).set(pxs(s), i, resampler(b).resample(tx, ty))
             }
           }
         }

@@ -72,9 +72,9 @@ object CassandraRDDWriter {
       instance.ensureKeyspaceExists(keyspace, session)
       session.execute(
         SchemaBuilder.createTable(keyspace, table).ifNotExists()
-          .addPartitionKey("key", varint)
-          .addClusteringColumn("name", text)
+          .addPartitionKey("name", text)
           .addClusteringColumn("zoom", cint)
+          .addClusteringColumn("key", varint)
           .addColumn("value", blob)
       )
     }

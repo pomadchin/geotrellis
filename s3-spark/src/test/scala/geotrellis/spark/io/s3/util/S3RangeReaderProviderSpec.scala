@@ -1,14 +1,15 @@
 package geotrellis.spark.store.s3.util
 
 import geotrellis.store.s3.util._
+import geotrellis.spark.store.s3.testkit.MockS3Client
+import geotrellis.store.s3.S3ClientProducer
 import geotrellis.util.RangeReader
 
 import org.scalatest._
 
-import java.net.URI
-
-
 class S3RangeReaderProviderSpec extends FunSpec with Matchers {
+  S3ClientProducer.set(() => MockS3Client())
+
   describe("S3RangeReaderProviderSpec") {
     val uri = new java.net.URI("s3://fake-bucket/some-prefix")
 

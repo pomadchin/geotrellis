@@ -17,15 +17,15 @@
 package geotrellis.layer.stitch
 
 import geotrellis.raster._
-import geotrellis.raster.prototype._
-import geotrellis.raster.merge._
 import geotrellis.raster.stitch.Stitcher
 import geotrellis.layer._
+import geotrellis.layer.Implicits._
+import geotrellis.raster.prototype._
 import geotrellis.vector.Extent
 import geotrellis.util._
 
 abstract class SpatialTileLayoutCollectionStitchMethods[
-  V <: CellGrid[Int]: Stitcher,
+  V <: CellGrid[Int]: Stitcher: ? => TilePrototypeMethods[V],
   M: GetComponent[?, LayoutDefinition]
 ] extends MethodExtensions[Seq[(SpatialKey, V)] with Metadata[M]] {
 
@@ -37,6 +37,43 @@ abstract class SpatialTileLayoutCollectionStitchMethods[
     val base = nwTileEx.southEast
     val (ulx, uly) = (base.x - offsx.toDouble * layout.cellwidth, base.y + offsy * layout.cellheight)
     Raster(tile, Extent(ulx, uly - tile.rows * layout.cellheight, ulx + tile.cols * layout.cellwidth, uly))
+  }
+
+  /**
+    * Stitch tiles in collection across an extent
+    *
+    * This method performs a sparse stitch, filling any missing tiles within the
+    * extent with an empty prototype tile.
+    *
+    * @param extent
+    * @return
+    */
+  def stitch(extent: Extent): Option[Raster[V]] = {
+    if (self.headOption.isEmpty) {
+      None
+    } else {
+      val tile = self.head._2
+      val layoutDefinition = self.metadata.getComponent[LayoutDefinition]
+      val mapTransform = layoutDefinition.mapTransform
+      val expectedKeys = mapTransform(extent)
+        .coordsIter
+        .map { case (x, y) => SpatialKey(x, y) }
+        .toList
+      val actualKeys = self.map(_._1)
+      val missingKeys = expectedKeys diff actualKeys
+
+      val missingTiles = missingKeys.map { key =>
+        (key, tile.prototype(layoutDefinition.tileLayout.tileCols, layoutDefinition.tileLayout.tileRows))
+      }
+      val allTiles = self.withContext { collection =>
+        collection.toList ::: missingTiles
+      }
+      if (allTiles.isEmpty) {
+        None
+      } else {
+        Some(allTiles.stitch())
+      }
+    }
   }
 }
 

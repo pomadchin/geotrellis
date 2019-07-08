@@ -28,7 +28,7 @@ object Implicits extends Implicits
 
 trait Implicits {
   implicit class withSpatialTileLayoutCollectionMethods[
-    V <: CellGrid[Int]: Stitcher,
+    V <: CellGrid[Int]: Stitcher: ? => TilePrototypeMethods[V],
     M: GetComponent[?, LayoutDefinition]
   ](
     val self: Seq[(SpatialKey, V)] with Metadata[M]

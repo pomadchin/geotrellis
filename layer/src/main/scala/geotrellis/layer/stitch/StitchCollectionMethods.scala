@@ -19,7 +19,6 @@ package geotrellis.layer.stitch
 import geotrellis.raster._
 import geotrellis.raster.stitch.Stitcher
 import geotrellis.layer._
-import geotrellis.layer.Implicits._
 import geotrellis.raster.prototype._
 import geotrellis.vector.Extent
 import geotrellis.util._

@@ -102,8 +102,8 @@ lazy val commonSettings = Seq(
   updateOptions := updateOptions.value.withGigahorse(false)
 )
 
-lazy val root = Project("geotrellis", file(".")).
-  aggregate(
+lazy val root = Project("geotrellis", file("."))
+  .aggregate(
     `accumulo`,
     `accumulo-spark`,
     `cassandra`,
@@ -128,19 +128,10 @@ lazy val root = Project("geotrellis", file(".")).
     vector,
     `vector-testkit`,
     vectortile
-  ).
-  settings(commonSettings: _*).
-  enablePlugins(ScalaUnidocPlugin).
-  settings(
-    initialCommands in console :=
-      """
-      import geotrellis.raster._
-      import geotrellis.vector._
-      import geotrellis.proj4._
-      import geotrellis.spark._
-      """
-  ).
-  settings(unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(geowave))
+  )
+  .settings(commonSettings: _*)
+  .enablePlugins(ScalaUnidocPlugin)
+  .settings(unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject -- inProjects(geowave))
 
 lazy val macros = project
   .settings(commonSettings)

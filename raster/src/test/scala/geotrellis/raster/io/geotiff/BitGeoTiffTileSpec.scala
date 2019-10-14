@@ -93,5 +93,43 @@ class BitGeoTiffTileSpec extends FunSpec
         tiffTileLocal
       }
     }
+
+    it("should convert striped tiffs") {
+      val tiff = SinglebandGeoTiff("/Users/daunnc/Downloads/bilevel-strip.tif")
+      // val tiff = SinglebandGeoTiff(geoTiffPath("3bands/bit/3bands-striped-band.tif"))
+      val tile = tiff.tile // .toArrayTile()
+
+      // check that it is possible to convert bit cellType to bit cellType
+      val tiffTile = tile/*.toGeoTiffTile*/.convert(BitCellType)
+      assertEqual(tiffTile.toArrayTile(), tile.toArrayTile)
+
+      // check that it is possible to convert int cellType to bit cellType
+      // and that bitCellType conversion is idempotent
+      (0 to 5).foldLeft(tile/*.toGeoTiffTile*/.convert(IntCellType)) { case (acc, _) =>
+        val tiffTileLocal = acc.convert(BitCellType)
+        assertEqual(tiffTileLocal.toArrayTile(), tile.toArrayTile)
+        tiffTileLocal
+      }
+    }
+
+    /*it("should convert striped tiffs2") {
+      val tiff = SinglebandGeoTiff(geoTiffPath("bilevel.tif"))
+      val tile = tiff.tile.toArrayTile()
+
+      // check that it is possible to convert bit cellType to bit cellType
+      val tiffTile = tile.toGeoTiffTile(GeoTiffOptions.DEFAULT.copy(storageMethod = Striped)).convert(BitCellType)
+      SinglebandGeoTiff(tiffTile, tiff.extent, tiff.crs, Tags.empty, GeoTiffOptions.DEFAULT.copy(storageMethod = Striped))
+        .write("/Users/daunnc/Downloads/bilevel-striped-again-1.tiff")
+
+      // assertEqual(tiffTile.toArrayTile(), tile.toArrayTile)
+
+      // check that it is possible to convert int cellType to bit cellType
+      // and that bitCellType conversion is idempotent
+      /*(0 to 5).foldLeft(tile.toGeoTiffTile.convert(IntCellType)) { case (acc, _) =>
+        val tiffTileLocal = acc.convert(BitCellType)
+        assertEqual(tiffTileLocal.toArrayTile(), tile.toArrayTile)
+        tiffTileLocal
+      }*/
+    }*/
   }
 }

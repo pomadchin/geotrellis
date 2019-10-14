@@ -398,6 +398,7 @@ object GeoTiffReader {
                 &|-> TiffTags._basicTags
                 ^|-> BasicTags._rowsPerStrip get).toInt
 
+            println(s"rowsPerStrip: $rowsPerStrip")
             Striped(rowsPerStrip)
           } else {
             val blockCols =
@@ -419,6 +420,8 @@ object GeoTiffReader {
         val bandCount = tiffTags.bandCount
 
         val segmentLayout = GeoTiffSegmentLayout(cols, rows, storageMethod, interleaveMethod, bandType)
+
+        println(s"GeoTiffSegmentLayout($cols, $rows, $storageMethod, $interleaveMethod, $bandType): ${GeoTiffSegmentLayout(cols, rows, storageMethod, interleaveMethod, bandType)}")
 
         val segmentBytes: SegmentBytes =
           if (streaming)

@@ -358,6 +358,10 @@ abstract class GeoTiffTile(
     val segmentIndex = getSegmentIndex(col, row)
     val i = getSegmentTransform(segmentIndex).gridToIndex(col, row)
 
+    /*println(s"col, row: ${col -> row}")
+    println(s"segmentIndex: $segmentIndex")
+    println(s"i: $i")*/
+
     getSegment(segmentIndex).getInt(i)
   }
 

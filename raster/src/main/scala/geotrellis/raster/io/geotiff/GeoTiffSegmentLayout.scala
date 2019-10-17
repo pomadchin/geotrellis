@@ -295,6 +295,7 @@ trait GeoTiffSegmentLayoutTransform {
         tileLayout.tileRows
       }
 
+    // Dimensions((cols + 7) / 8, rows)
     Dimensions(cols, rows)
   }
 

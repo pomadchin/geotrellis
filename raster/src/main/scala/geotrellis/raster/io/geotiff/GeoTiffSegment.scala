@@ -18,10 +18,12 @@ package geotrellis.raster.io.geotiff
 
 import geotrellis.raster.io.geotiff.util._
 import geotrellis.raster._
-
 import java.util.BitSet
 import java.nio.ByteBuffer
+
 import spire.syntax.cfor._
+
+import scala.util.Try
 
 /**
  * Base trait of GeoTiffSegment
@@ -29,6 +31,7 @@ import spire.syntax.cfor._
 trait GeoTiffSegment {
   def size: Int
   def getInt(i: Int): Int
+  def paddedGetInt(i: Int): Int = getInt(i)
   def getDouble(i: Int): Double
 
   /** represents all of the bytes in the segment */
@@ -39,6 +42,9 @@ trait GeoTiffSegment {
   def mapWithIndex(f: (Int, Int) => Int): Array[Byte]
   def mapDoubleWithIndex(f: (Int, Double) => Double): Array[Byte]
 
+
+  def byte2String(b: Byte) =
+    String.format("%8s", Integer.toBinaryString(b & 0xff)).replace(' ', '0')
   /**
    * Converts the segment to the given CellType
    *
@@ -48,12 +54,75 @@ trait GeoTiffSegment {
   def convert(cellType: CellType): Array[Byte] =
     cellType match {
       case BitCellType =>
-        val dsize = size >> 3
-        val arr = Array.ofDim[Byte](dsize)
-        cfor(0)(_ < size, _ + 1) { i => BitArrayTile.update(arr, i, getInt(i))  }
+        // println(s"(size + 7) / 8: ${(size + 7) / 8}")
+        // println(s"size >> 3: ${size >> 3}")
+        val buf = ByteBuffer.wrap(bytes)
+        val dsize = (size + 7) / 8
+        val psize = {
+          if(bytes.length % 8 == 0) size
+          else dsize * 8
+        }
+        val arr = Array.ofDim[Byte](dsize) //.fill(-1)
+        /*println(s"size: ${size}")
+        println(s"psize: ${psize}")
+        println(s"bytes.size: ${bytes.size}")*/
+        cfor(0)(_ < size, _ + 1) { i =>
+          /*if (i >= 110 && i <= 120 || (i == 341)) {
+            println(s"{bytes(${i})}: ${bytes(i)}")
+            println(s"getInt($i): ${getInt(i)}")
+          }*/
+          // Try { BitArrayTile.update(arr, i, getInt(i)) }
+          BitArrayTile.update(arr, i, paddedGetInt(i))
+        }
+
+        // set unset last bits
+        //val psize = dsize * 8
+        //cfor(size)(_ < psize, _ + 1) { i => BitArrayTile.update(arr, i, 0) }
+
+        // set missed bit
         // Our BitCellType rasters have the bits encoded in a order inside of each byte that is
         // the reverse of what a GeoTiff wants.
-        cfor(0)(_ < dsize, _ + 1) { i => arr(i) = ((Integer.reverse(arr(i)) >>> 24) & 0xff).toByte }
+        cfor(0)(_ < dsize, _ + 1) { i => arr(i) = invertByte(arr(i)) }
+        // cfor(0)(_ < dsize, _ + 1) { i => arr(i) = ((Integer.reverse(arr(i)) >>> 24) & 0xff).toByte }
+        // bytes
+        // scala> (904 to 911).map(_ >> 3)
+        //res26: scala.collection.immutable.IndexedSeq[Int] = Vector(113, 113, 113, 113, 113, 113, 113, 113)
+
+        /*println("**********************")
+        ((904 - 16) to (911 + 16)).foreach { i =>
+          println(s"getInt($i): ${getInt(i)}")
+        }
+
+        ((2728 - 16) to (2728)).foreach { i =>
+          println(s"getInt($i): ${getInt(i)}")
+        }
+        println("**********************")
+
+        println("~~~~~~~~~~")
+        println(arr.toList)
+        println(arr.size)
+        println(s"arr(113): ${arr(113)}")
+        println(s"byte2String(arr(113)): ${byte2String(arr(113))}")
+        println(s"arr(114): ${arr(114)}")
+        println(s"byte2String(arr(114)): ${byte2String(arr(114))}")
+        println(s"arr(341): ${arr(341)}")
+        println(s"byte2String(arr(341)): ${byte2String(arr(341))}")
+        println("~~~~~~~~~~")
+        println(bytes.toList)
+        println(bytes.size)
+        println(s"bytes(113): ${bytes(113)}")
+        println(s"byte2String(bytes(113)): ${byte2String(bytes(113))}")
+        println(s"bytes(114): ${bytes(114)}")
+        println(s"byte2String(bytes(114)): ${byte2String(bytes(114))}")
+        println(s"bytes(341): ${bytes(341)}")
+        println(s"byte2String(bytes(341)): ${byte2String(bytes(341))}")
+        println("~~~~~~~~~~")*/
+        // println(s"diff: ${arr.toList diff bytes.toList}")
+        // println(s"diff: ${bytes.toList diff arr.toList}")
+        /*println(s"size: $size")
+        println(s"dsize: $dsize")
+        println(s"psize: $psize")
+        throw new Exception("lol")*/
         arr
       case ByteCellType =>
         val arr = Array.ofDim[Byte](size)

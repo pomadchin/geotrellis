@@ -29,23 +29,140 @@ class BitGeoTiffSegment(val bytes: Array[Byte], cols: Int, rows: Int) extends Ge
   val size = cols * rows
 
   private val paddedCols = {
-    val bytesWidth = (cols + 7) / 8
-    bytesWidth * 8
+    // if (bytes.length % 8 == 0) cols
+    // else {
+      val bytesWidth = (cols + 7) / 8
+      bytesWidth * 8
+    // }
   }
 
   def getInt(i: Int): Int = get(i).toInt
+  override def paddedGetInt(i: Int): Int = pget(i).toInt
   def getDouble(i: Int): Double = get(i).toDouble
+
+  private def pindex(i: Int): Int = {
+    val col = i % paddedCols
+    val row = i / paddedCols
+
+    val res = (row * paddedCols) + col
+    /*println(s"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+    println(s"cols: ${cols}")
+    println(s"rows: ${rows}")
+    println(s"col: $i % cols: $col")
+    println(s"row: $i / cols: $row")
+    println(s"index: ($row * $paddedCols) + $col: ${res}")
+    println(s"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")*/
+    // println(s"col: $i % $cols: $col")
+    // println(s"row: $i / $cols: $row")
+    // println(s"col: $i % $paddedCols: $col")
+    // println(s"row: $i / $paddedCols: $row")
+    // println(s"index: ($row * $paddedCols) + $col: ${res}")
+    res
+  }
 
   /** Creates a corrected index into the byte array that accounts for byte padding on rows */
   private def index(i: Int): Int = {
-    val col = (i % cols)
-    val row = (i / cols)
+    val col = i % cols
+    val row = i / cols
 
-    (row * paddedCols) + col
+    val res = (row * paddedCols) + col
+    /*println(s"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+    println(s"cols: ${cols}")
+    println(s"rows: ${rows}")
+    println(s"col: $i % cols: $col")
+    println(s"row: $i / cols: $row")
+    println(s"index: ($row * $paddedCols) + $col: ${res}")
+    println(s"iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")*/
+    // println(s"col: $i % $cols: $col")
+    // println(s"row: $i / $cols: $row")
+    // println(s"col: $i % $paddedCols: $col")
+    // println(s"row: $i / $paddedCols: $row")
+    // println(s"index: ($row * $paddedCols) + $col: ${res}")
+    res
   }
 
+  /**
+    * **********************
+    * index(904): 904
+    * index(904) >> 3: 113
+    * bytes(index >> 3): -20
+    * getInt(i): 1
+    * index(905): 905
+    * index(905) >> 3: 113
+    * bytes(index >> 3): -20
+    * getInt(i): 1
+    * index(906): 906
+    * index(906) >> 3: 113
+    * bytes(index >> 3): -20
+    * getInt(i): 1
+    * index(907): 907
+    * index(907) >> 3: 113
+    * bytes(index >> 3): -20
+    * getInt(i): 0
+    * index(908): 908
+    * index(908) >> 3: 113
+    * bytes(index >> 3): -20
+    * getInt(i): 1
+    * index(909): 909
+    * index(909) >> 3: 113
+    * bytes(index >> 3): -20
+    * getInt(i): 1
+    * index(910): 912
+    * index(910) >> 3: 114
+    * bytes(index >> 3): -33
+    * getInt(i): 1
+    * index(911): 913
+    * index(911) >> 3: 114
+    * bytes(index >> 3): -33
+    * getInt(i): 1
+    * **********************
+    *
+    * @param i
+    * @return
+    */
   def get(i: Int): Byte = {
+    /*if(((index(i) >> 3) >= 110) && ((index(i) >> 3) <= 115) /*|| (index(i) >> 3) >= 340*/) {
+      println
+      println(s"index($i): ${index(i)}")
+      println(s"index($i) >> 3: ${index(i) >> 3}")
+      println(s"bytes(index >> 3): ${bytes(index(i) >> 3)}")
+      println
+    }*/
+
+    /*println
+    println(s"index($i): ${index(i)}")
+    println(s"index($i) >> 3: ${index(i) >> 3}")
+    println(s"bytes(index >> 3): ${bytes(index(i) >> 3)}")
+    println*/
+
     val i2 = index(i)
+
+
+
+    // println(s"index >> 3 : ${i2 >> 3}")
+    ((invertByte(bytes(i2 >> 3)) >> (i2 & 7)) & 1).asInstanceOf[Byte]
+  }
+
+  def pget(i: Int): Byte = {
+    /*if(((index(i) >> 3) >= 110) && ((index(i) >> 3) <= 115) /*|| (index(i) >> 3) >= 340*/) {
+      println
+      println(s"index($i): ${index(i)}")
+      println(s"index($i) >> 3: ${index(i) >> 3}")
+      println(s"bytes(index >> 3): ${bytes(index(i) >> 3)}")
+      println
+    }*/
+
+    /*println
+    println(s"index($i): ${index(i)}")
+    println(s"index($i) >> 3: ${index(i) >> 3}")
+    println(s"bytes(index >> 3): ${bytes(index(i) >> 3)}")
+    println*/
+
+    val i2 = pindex(i)
+
+
+
+    // println(s"index >> 3 : ${i2 >> 3}")
     ((invertByte(bytes(i2 >> 3)) >> (i2 & 7)) & 1).asInstanceOf[Byte]
   }
 

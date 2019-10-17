@@ -144,10 +144,29 @@ class GeoTiffReaderSpec extends FunSpec
     }
 
     it("must read bilevel_tiled.tif and match strip file") {
+      println(geoTiffPath("bilevel_tiled.tif"))
+      println(geoTiffPath("bilevel.tif"))
       val tiled = SinglebandGeoTiff(geoTiffPath("bilevel_tiled.tif"))
       val striped = SinglebandGeoTiff(geoTiffPath("bilevel.tif"))
 
-      assertEqual(tiled.tile, striped.tile)
+
+      println((tiled.tile - striped.tile).findMinMax)
+
+      println(tiled.tile.toArray())
+
+      println(striped.tile.toArray())
+
+      println(tiled.tile.get(0, 1))
+      println(striped.tile.get(0, 1))
+
+
+      SinglebandGeoTiff(tiled.tile, tiled.extent, tiled.crs, Tags.empty, GeoTiffOptions.DEFAULT)//.copy(storageMethod = Striped))
+        .write("/Users/daunnc/Downloads/bilevel-readerspec-1.tiff")
+
+      SinglebandGeoTiff(striped.tile, tiled.extent, tiled.crs, Tags.empty, GeoTiffOptions.DEFAULT.copy(storageMethod = Striped))
+        .write("/Users/daunnc/Downloads/bilevel-striped-readerspec-1.tiff")
+
+      assertEqual(tiled.tile.toArrayTile, striped.tile.toArrayTile)
     }
 
     it("should match bit and byte-converted rasters") {

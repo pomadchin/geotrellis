@@ -72,7 +72,7 @@ trait GeoTiffSegment {
             println(s"getInt($i): ${getInt(i)}")
           }*/
           // Try { BitArrayTile.update(arr, i, getInt(i)) }
-          BitArrayTile.update(arr, i, paddedGetInt(i))
+          BitArrayTile.update(arr, i, getInt(i))
         }
 
         // set unset last bits

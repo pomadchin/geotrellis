@@ -28,6 +28,9 @@ class BitGeoTiffSegment(val bytes: Array[Byte], cols: Int, rows: Int) extends Ge
 
   val size = cols * rows
 
+  def paddedBits = (cols to paddedCols)
+  def safeCol =  (cols - (8 - (paddedCols - cols)))
+
   private val paddedCols = {
     // if (bytes.length % 8 == 0) cols
     // else {

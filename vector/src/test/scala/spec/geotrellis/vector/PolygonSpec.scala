@@ -16,9 +16,10 @@
 
 package geotrellis.vector
 
+import geotrellis.proj4.{CRS, LatLng}
 import geotrellis.vector.testkit._
 
-import org.locationtech.jts.{geom=>jts}
+import cats.syntax.either._
 
 import org.scalatest._
 
@@ -618,6 +619,190 @@ class PolygonSpec extends FunSpec with Matchers {
       val l = LineString( (0.0, 0.0), (1.0, 1.0), (0.0, 1.0), (1.0, 0.0), (0.0, 0.0))
       val p = Polygon(l)
       p.exterior should matchGeom(l)
+    }
+
+    it("MultiPolygon should contain a Polygon") {
+      val crs = CRS.fromEpsgCode(32616)
+      val polygon = """
+                      |{
+                      |  "type": "Polygon",
+                      |  "coordinates": [
+                      |    [
+                      |      [
+                      |        301599.466697037,
+                      |        4932229.096487437
+                      |      ],
+                      |      [
+                      |        301599.466697037,
+                      |        4932230.096487457
+                      |      ],
+                      |      [
+                      |        301600.46669720486,
+                      |        4932230.096487457
+                      |      ],
+                      |      [
+                      |        301600.46669720486,
+                      |        4932229.096487437
+                      |      ],
+                      |      [
+                      |        301599.466697037,
+                      |        4932229.096487437
+                      |      ]
+                      |    ]
+                      |  ]
+                      |}
+                      |""".stripMargin.parseJson.as[Polygon].valueOr(throw _)
+
+      val multiPolygon =
+        """
+          |{
+          |  "type": "MultiPolygon",
+          |  "coordinates": [
+          |    [
+          |      [
+          |        [
+          |          301570.4514820544,
+          |          4932330.550698328
+          |        ],
+          |        [
+          |          301608.4739502942,
+          |          4932329.050574216
+          |        ],
+          |        [
+          |          301615.7797098104,
+          |          4932283.3908159025
+          |        ],
+          |        [
+          |          301567.98736547644,
+          |          4932285.527373691
+          |        ],
+          |        [
+          |          301570.4514820544,
+          |          4932330.550698328
+          |        ]
+          |      ],
+          |      [
+          |        [
+          |          301568.33936377685,
+          |          4932265.41646293
+          |        ],
+          |        [
+          |          301616.3991255134,
+          |          4932264.116287277
+          |        ],
+          |        [
+          |          301607.37711448024,
+          |          4932221.9959483575
+          |        ],
+          |        [
+          |          301576.71921868704,
+          |          4932223.2709015105
+          |        ],
+          |        [
+          |          301568.33936377685,
+          |          4932265.41646293
+          |        ]
+          |      ]
+          |    ]
+          |  ]
+          |}
+          |""".stripMargin.parseJson.as[MultiPolygon].valueOr(throw _)
+
+      // p1 from multipolygon
+      val p1 =
+        """
+          |{
+          |  "type": "Polygon",
+          |  "coordinates": [
+          |    [
+          |        [
+          |          301570.4514820544,
+          |          4932330.550698328
+          |        ],
+          |        [
+          |          301608.4739502942,
+          |          4932329.050574216
+          |        ],
+          |        [
+          |          301615.7797098104,
+          |          4932283.3908159025
+          |        ],
+          |        [
+          |          301567.98736547644,
+          |          4932285.527373691
+          |        ],
+          |        [
+          |          301570.4514820544,
+          |          4932330.550698328
+          |        ]
+          |      ]
+          |  ]
+          |}
+          |""".stripMargin.parseJson.as[Polygon].valueOr(throw _)
+
+      val p2 =
+        """
+          |
+          |{
+          |  "type": "Polygon",
+          |  "coordinates": [
+          |    [
+          |        [
+          |          301568.33936377685,
+          |          4932265.41646293
+          |        ],
+          |        [
+          |          301616.3991255134,
+          |          4932264.116287277
+          |        ],
+          |        [
+          |          301607.37711448024,
+          |          4932221.9959483575
+          |        ],
+          |        [
+          |          301576.71921868704,
+          |          4932223.2709015105
+          |        ],
+          |        [
+          |          301568.33936377685,
+          |          4932265.41646293
+          |        ]
+          |      ]
+          |  ]
+          |}
+          |""".stripMargin.parseJson.as[Polygon].valueOr(throw _)
+
+
+      val rp1 = p1.reproject(crs, LatLng)
+      val rp2 = p2.reproject(crs, LatLng)
+
+      val rpolygon = polygon.reproject(crs, LatLng)
+      val rmultiPolygon = multiPolygon.reproject(crs, LatLng)
+
+      // for a nice vizualization
+      val json = GeometryCollection(
+        polygons = Seq(rpolygon),
+        multiPolygons = Seq(rmultiPolygon)
+      ).toGeoJson()
+
+      // debug print
+      println(json)
+
+      p1.contains(polygon) shouldBe (false)
+      p2.contains(polygon) shouldBe (true)
+      rp1.contains(rpolygon) shouldBe (false)
+      rp2.contains(rpolygon) shouldBe (true)
+
+      println("---------")
+      println(MultiPolygon(p1, p2).contains(polygon))
+      println(MultiPolygon(rp1, rp2).contains(rpolygon))
+      println(multiPolygon.contains(polygon))
+      println("---------")
+      MultiPolygon(p1, p2).contains(polygon) shouldBe (true)
+      MultiPolygon(rp1, rp2).contains(rpolygon) shouldBe (true)
+
+      rmultiPolygon.contains(rpolygon) shouldBe (true)
+      multiPolygon.contains(polygon) shouldBe (true)
     }
   }
 }

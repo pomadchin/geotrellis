@@ -166,7 +166,16 @@ trait GeometryFormats {
     Decoder.decodeJson.emap { json: Json =>
       val c = json.hcursor
       c.downField("type").as[String].flatMap {
-        case "MultiPolygon" => c.downField("coordinates").focus.map(json => MultiPolygon(json.asArray.toVector.flatten.map(readPolygonCoords))).toRight("MultiPolygon geometry expected")
+        case "MultiPolygon" => c.downField("coordinates").focus.map { json =>
+          println("==========")
+          json.asArray.toVector.flatten.map(readPolygonCoords).map { p =>
+            println(p.toGeoJson())
+          }
+          println("==========")
+          // println(s"json.asArray.toVector.flatten.map(readPolygonCoords): ${json.asArray.toVector.flatten.map(readPolygonCoords)}")
+
+          MultiPolygon(json.asArray.toVector.flatten.map(readPolygonCoords))
+        }.toRight("MultiPolygon geometry expected")
         case "Feature" => multiPolygonDecoder(unwrapFeature(json).hcursor)
         case _ => Left("MultiPolygon geometry expected")
       }.leftMap(_ => "MultiPolygon geometry expected")

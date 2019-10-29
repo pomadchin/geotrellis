@@ -2,11 +2,10 @@ import Dependencies._
 import de.heikoseeberger.sbtheader._
 import sbt.Keys._
 
-ThisBuild / scalaVersion := "2.12.8"
-ThisBuild / crossScalaVersions := List("2.12.8", "2.11.12")
-ThisBuild / organization := "org.locationtech.geotrellis"
-
 lazy val commonSettings = Seq(
+  scalaVersion := "2.12.8",
+  crossScalaVersions := List("2.12.8", "2.11.12"),
+  organization := "org.locationtech.geotrellis",
   description := Info.description,
   licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.html")),
   homepage := Some(url("http://geotrellis.io")),
@@ -258,20 +257,26 @@ lazy val geotools = project
   .settings(commonSettings)
   .settings(Settings.geotools)
 
-// lazy val geomesa = project
-//   .dependsOn(`spark-testkit` % Test, spark, geotools, `accumulo-spark`)
-//   .settings(commonSettings)
-//   .settings(Settings.geomesa)
-//   .settings(crossScalaVersions := Seq(scalaVersion.value))
+/* lazy val geomesa = project
+  .dependsOn(`spark-testkit` % Test, spark, geotools, `accumulo-spark`)
+  .settings(commonSettings)
+  .settings(Settings.geomesa)
+  .settings(
+    scalaVersion := "2.11.12",
+    crossScalaVersions := Seq("2.11.12")
+  )
 
-// lazy val geowave = project
-//   .dependsOn(
-//     proj4, raster, layer, store, accumulo,
-//     `spark-testkit` % Test, geotools
-//   )
-//   .settings(commonSettings)
-//   .settings(Settings.geowave)
-//   .settings(crossScalaVersions := Seq(scalaVersion.value))
+lazy val geowave = project
+  .dependsOn(
+    proj4, raster, layer, store, accumulo,
+    `spark-testkit` % Test, geotools
+  )
+  .settings(commonSettings)
+  .settings(Settings.geowave)
+  .settings(
+    scalaVersion := "2.11.12",
+    crossScalaVersions := Seq("2.11.12")
+  ) */
 
 lazy val shapefile = project
   .dependsOn(raster, `raster-testkit` % Test)

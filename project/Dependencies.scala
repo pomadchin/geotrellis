@@ -18,22 +18,33 @@ import sbt._
 
 object Version {
   val geotools    = "21.2"
-  val monocle     = "1.5.1-cats"
+  val monocle     = ("1.5.1-cats", "2.0.0") // a tuple with 2.11, 2.12 versions
   val spire       = "0.13.0"
   val accumulo    = "1.9.3"
   val cassandra   = "3.7.2"
   val hbase       = "2.2.0"
   val geomesa     = "2.3.1"
   val geowave     = "0.9.3"
-  val circe       = "0.11.1"
-  val gdal        = "2.4.0"
-  val gdalWarp    = "33.61199eb"
+  val circe       = ("0.11.1", "0.12.2")
+  val catsCore    = ("1.6.1", "2.0.0")
+  val catsEffect  = ("1.3.1", "2.0.0")
+  val fs2         = ("1.0.5", "2.0.1")
+  val scalaURI    = ("1.4.10", "1.5.1")
   val hadoop      = "2.8.5"
   val spark       = "2.4.4"
-  val previousVersion = "2.2.0"
+  val gdal        = "2.4.0"
+  val gdalWarp    = "33.61199eb"
+
+  val previousVersion = "3.0.0"
 }
 
 object Dependencies {
+  def scala211or212(scalaVersion: String, versions: (String, String)): String =
+    CrossVersion.partialVersion(scalaVersion) match {
+      case Some((2, scalaMajor)) if scalaMajor >= 12 => versions._2
+      case _ => versions._1
+    }
+
   val pureconfig          = "com.github.pureconfig"      %% "pureconfig"               % "0.11.1"
   val logging             = "org.log4s"                  %% "log4s"                    % "1.8.2"
   val scalatest           = "org.scalatest"              %% "scalatest"                % "3.0.8"
@@ -42,8 +53,8 @@ object Dependencies {
   val jts                 = "org.locationtech.jts"        % "jts-core"                 % "1.16.1"
   val proj4j              = "org.locationtech.proj4j"     % "proj4j"                   % "1.1.0"
 
-  val monocleCore         = "com.github.julien-truffaut" %% "monocle-core"             % Version.monocle
-  val monocleMacro        = "com.github.julien-truffaut" %% "monocle-macro"            % Version.monocle
+  def monocleCore(scalaVersion: String)  = "com.github.julien-truffaut" %% "monocle-core"  % scala211or212(scalaVersion, Version.monocle)
+  def monocleMacro(scalaVersion: String) = "com.github.julien-truffaut" %% "monocle-macro" % scala211or212(scalaVersion, Version.monocle)
 
   val openCSV             = "com.opencsv"                 % "opencsv"                  % "4.6"
 
@@ -58,11 +69,11 @@ object Dependencies {
 
   val awsSdkS3            = "software.amazon.awssdk"      % "s3"                       % "2.7.32"
 
-  val catsCore            = "org.typelevel"              %% "cats-core"                % "1.6.1"
-  val catsEffect          = "org.typelevel"              %% "cats-effect"              % "1.3.1"
+  def catsCore(scalaVersion: String)   = "org.typelevel" %% "cats-core"   % scala211or212(scalaVersion, Version.catsCore)
+  def catsEffect(scalaVersion: String) = "org.typelevel" %% "cats-effect" % scala211or212(scalaVersion, Version.catsEffect)
 
-  val fs2Core             = "co.fs2"                     %% "fs2-core"                 % "1.0.5"
-  val fs2Io               = "co.fs2"                     %% "fs2-io"                   % "1.0.5"
+  def fs2Core(scalaVersion: String) = "co.fs2" %% "fs2-core" % scala211or212(scalaVersion, Version.fs2)
+  def fs2Io(scalaVersion: String)   = "co.fs2" %% "fs2-io"   % scala211or212(scalaVersion, Version.fs2)
 
   val sparkCore           = "org.apache.spark"           %% "spark-core"               % Version.spark
   val sparkSQL            = "org.apache.spark"           %% "spark-sql"                % Version.spark
@@ -77,10 +88,10 @@ object Dependencies {
 
   val scaffeine           = "com.github.blemale"         %% "scaffeine"                % "3.1.0"
 
-  val circeCore           = "io.circe"                   %% "circe-core"               % Version.circe
-  val circeGeneric        = "io.circe"                   %% "circe-generic"            % Version.circe
-  val circeGenericExtras  = "io.circe"                   %% "circe-generic-extras"     % Version.circe
-  val circeParser         = "io.circe"                   %% "circe-parser"             % Version.circe
+  def circeCore(scalaVersion: String)          = "io.circe" %% "circe-core"           % scala211or212(scalaVersion, Version.circe)
+  def circeGeneric(scalaVersion: String)       = "io.circe" %% "circe-generic"        % scala211or212(scalaVersion, Version.circe)
+  def circeGenericExtras(scalaVersion: String) = "io.circe" %% "circe-generic-extras" % scala211or212(scalaVersion, Version.circe)
+  def circeParser(scalaVersion: String)        = "io.circe" %% "circe-parser"         % scala211or212(scalaVersion, Version.circe)
 
   val accumuloCore        = "org.apache.accumulo"          % "accumulo-core"           % Version.accumulo
 
@@ -133,7 +144,8 @@ object Dependencies {
 
   val squants             = "org.typelevel"               %% "squants"                 % "1.4.0"
   val scalactic           = "org.scalactic"               %% "scalactic"               % "3.0.8"
-  val scalaURI            = "io.lemonlabs"                %% "scala-uri"               % "1.4.10"
+
+  def scalaURI(scalaVersion: String) = "io.lemonlabs" %% "scala-uri" % scala211or212(scalaVersion, Version.scalaURI)
 
   val gdalBindings        = "org.gdal"                     % "gdal"                    % Version.gdal
   val gdalWarp            = "com.azavea.gdal"              % "gdal-warp-bindings"      % Version.gdalWarp

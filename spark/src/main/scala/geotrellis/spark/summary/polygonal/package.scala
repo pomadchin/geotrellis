@@ -16,4 +16,4 @@
 
 package geotrellis.spark.summary
 
-package object polygonal extends RDDPolygonalSummary.ToRDDPolygonalSummaryMethods {}
+package object polygonal extends polygonal.Implicits

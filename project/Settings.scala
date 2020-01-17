@@ -741,7 +741,8 @@ object Settings {
     libraryDependencies ++= Seq(
       gdalWarp,
       scalatest % Test,
-      gdalBindings % Test
+      gdalBindings % Test,
+      cats("effect").value % Test
     ),
     resolvers += Repositories.azaveaBintray,
     Test / fork := true,

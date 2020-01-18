@@ -111,6 +111,98 @@ class GDALRasterSourceSpec extends FunSpec with RasterMatchers with GivenWhenThe
     }
   }
 
+  describe("GDALRasterSource Multithreading Spec") {
+    import geotrellis.proj4.WebMercator
+    import geotrellis.vector.Extent
+
+    import cats.implicits._
+    import cats.effect._
+
+    import java.util.concurrent.Executors
+    import scala.concurrent.ExecutionContext
+
+
+    // GDALWarp.init(2)
+    println(s"GDALOptionsConfig.conf.options: ${GDALOptionsConfig.conf.options}")
+    // GDALWarp.set_config_option("AWS_REQUEST_PAYER", "requester")
+
+    val list = List(
+        "/vsis3/geotrellis-test/daunnc/5/31/0/R60m/B08.jp2",
+      "/vsis3/geotrellis-test/daunnc/5/31/0/R60m/B12.jp2",
+      "/vsis3/geotrellis-test/daunnc/7/17/0/R60m/B08.jp2",
+      "/vsis3/geotrellis-test/daunnc/7/17/0/R60m/B12.jp2"
+    )
+
+    val filePath = "/Users/daunnc/Downloads/B08.jp2"
+    // def filePathByIndex(i: Int): String = s"/Users/daunnc/Downloads/B08-$i.jp2"
+    def filePathByIndex(i: Int): String = list(i)
+    // def filePathByIndex(i: Int): String = s"/vsicurl/http://localhost:8080/$i.jp2"
+    // def filePathByIndex(i: Int): String = s"/vsis3/geotrellis-test/daunnc/jp2000/$i.jp2"
+
+    /** Simulate possible RF calls **/
+    def dirtyCallsRS(rs: RasterSource): RasterSource = {
+      val Extent(xmin, ymin, xmax, ymax) = rs.gridExtent.toRasterExtent().extent
+      val string = rs.crs.proj4jCrs
+      val CellSize(ch, cw) = rs.cellSize
+      val Extent(xmin1, ymin1, xmax1, ymax1) = rs.extent
+      val cellType = rs.cellType
+
+      // val raster = rs.read()
+
+      rs
+    }
+
+    def parellSpec(n: Int = 1000)(implicit cs: ContextShift[IO]) = {
+
+      println(java.lang.Thread.activeCount())
+
+      // to make it work with weak refs we have to remember all the datasets
+      val res = (1 to n).toList.flatMap { i =>
+        (i to math.min(i + 100, n)).toList.map { j =>
+          IO {
+            val path = filePathByIndex(j)
+            val fst = GDALDataset(path) // dirtyCallsRS(GDALRasterSource(path))
+            println(s"Running: ${j}")
+            println(java.lang.Thread.currentThread().getName)
+            fst.cellType
+            // val dst = dirtyCallsRS(fst.reproject(WebMercator))
+            // val trd = dirtyCallsRS(fst.resample(20, 20))
+            // System.gc()
+            (fst, fst, fst)
+          }
+        }
+      }.parSequence.unsafeRunSync()
+
+      println(java.lang.Thread.activeCount())
+
+      res
+    }
+
+    it("GDALRasterSource should work") {
+      val path = filePathByIndex(1)
+      val fst = dirtyCallsRS(GDALRasterSource(path))
+      val dst = dirtyCallsRS(fst.reproject(WebMercator))
+      val trd = dirtyCallsRS(fst.resample(20, 20))
+    }
+
+    it("GDALRasterSource multithreaded test forkjoin pool") {
+      val i = 1000
+      implicit val cs = IO.contextShift(ExecutionContext.global)
+
+      val res = parellSpec(i)
+    }
+
+    it("GDALRasterSource multithreaded test fixed thread pool") {
+      val i = 1000
+      val n = 100
+      val pool = Executors.newFixedThreadPool(n)
+      val ec = ExecutionContext.fromExecutor(pool)
+      implicit val cs = IO.contextShift(ec)
+
+      val res = parellSpec(i)
+    }
+  }
+
   describe("GDALRasterSource MultithreadingOLD Spec") {
     import geotrellis.proj4.WebMercator
     import geotrellis.vector.Extent
@@ -122,7 +214,7 @@ class GDALRasterSourceSpec extends FunSpec with RasterMatchers with GivenWhenThe
     import scala.concurrent.ExecutionContext
 
 
-    GDALWarp.init(2)
+    GDALWarp.init(1)
     GDALOptionsConfig.registerOption("AWS_REQUEST_PAYER", "requester")
 
     val list = List(
@@ -138,10 +230,11 @@ class GDALRasterSourceSpec extends FunSpec with RasterMatchers with GivenWhenThe
 
     /** Simulate possible RF calls */
     def dirtyCallsRS(rs: RasterSource): RasterSource = {
-      val Extent(xmin, ymin, xmax, ymax) = rs.gridExtent.toRasterExtent().extent
+      val ex @ Extent(xmin, ymin, xmax, ymax) = rs.gridExtent.toRasterExtent().extent
       val string = rs.crs.proj4jCrs
       val CellSize(ch, cw) = rs.cellSize
       val Extent(xmin1, ymin1, xmax1, ymax1) = rs.extent
+      val cellType = rs.cellType
       // val raster = rs.read()
 
       rs
@@ -152,10 +245,19 @@ class GDALRasterSourceSpec extends FunSpec with RasterMatchers with GivenWhenThe
       println(java.lang.Thread.activeCount())
 
       // to make it work with weak refs we have to remember all the datasets
-      val res = (1 to n).toList.flatMap { _ =>
+      val res = (1 to n).toList.flatMap { j =>
         (0 until 4).flatMap { i =>
           val path = filePathByIndex(i)
           List(IO {
+            // println(s"j-i start: $j-$i")
+            val fst = dirtyCallsRS(GDALRasterSource(path))
+            // val dst = dirtyCallsRS(fst.reproject(WebMercator))
+            // val trd = dirtyCallsRS(fst.resample(20, 20))
+            // println(s"j-i stop: $j-$i")
+            // System.gc()
+
+            (fst, fst, fst)
+          }/*, IO {
             val fst = dirtyCallsRS(GDALRasterSource(path))
             val dst = dirtyCallsRS(fst.reproject(WebMercator))
             val trd = dirtyCallsRS(fst.resample(20, 20))
@@ -169,14 +271,7 @@ class GDALRasterSourceSpec extends FunSpec with RasterMatchers with GivenWhenThe
             // System.gc()
 
             (fst, dst, trd)
-          }, IO {
-            val fst = dirtyCallsRS(GDALRasterSource(path))
-            val dst = dirtyCallsRS(fst.reproject(WebMercator))
-            val trd = dirtyCallsRS(fst.resample(20, 20))
-            // System.gc()
-
-            (fst, dst, trd)
-          })
+          }*/)
         }
       }.parSequence.unsafeRunSync
 

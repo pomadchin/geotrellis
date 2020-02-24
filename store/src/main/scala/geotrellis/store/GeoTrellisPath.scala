@@ -59,13 +59,15 @@ object GeoTrellisPath {
 
     val catalogPath: Option[String] = {
       uri.schemeOption.fold(uri.toStringRaw.some) { scheme =>
-        val authority =
+        val (userinfo, host, port) =
           uri match {
-            case url: UrlWithAuthority => url.authority.userInfo.user.getOrElse("")
+            case url: UrlWithAuthority =>
+            val auth = url.authority
+              (auth.userInfo.user.getOrElse(""), auth.host, auth.port.map(p => s":$p").getOrElse(""))
             case _ => ""
           }
 
-        s"${scheme.split("\\+").last}://$authority${uri.path}".some
+        s"${scheme.split("\\+").last}://$host$port$userinfo${uri.path}".some
       }
     }
 

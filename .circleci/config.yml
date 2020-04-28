@@ -183,66 +183,12 @@ jobs:
 workflows:
   test-and-publish:
     jobs:
-      - common:
-          matrix:
-            parameters:
-              scala-version: ["2.12.11", "2.11.12"]
-              test-set: ["1", "2"]
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              only: /^v.*/
-
-      - cassandra:
-          matrix:
-            parameters:
-              scala-version: ["2.11.12", "2.12.11"]
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              only: /^v.*/
-
-      - s3:
-          matrix:
-            parameters:
-              scala-version: ["2.11.12", "2.12.11"]
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              only: /^v.*/
-
-      - hbase:
-          matrix:
-            parameters:
-              scala-version: ["2.11.12", "2.12.11"]
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              only: /^v.*/
-
-      - scaladocs:
-          matrix:
-            parameters:
-              scala-version: ["2.12.11"]
-          filters:
-            branches:
-              only: master
-
       - publish:
-          requires:
-            - common
-            - cassandra
-            - s3
-            - hbase
           matrix:
             parameters:
               scala-version: ["2.11.12", "2.12.11"]
           filters:
             branches:
-              only: master
+              only: /.*/
             tags:
               only: /^v.*/

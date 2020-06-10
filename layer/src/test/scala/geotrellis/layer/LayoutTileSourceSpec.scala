@@ -22,11 +22,12 @@ import geotrellis.raster.testkit.{RasterMatchers, Resource}
 import geotrellis.raster.geotiff._
 import geotrellis.raster.io.geotiff.reader._
 import geotrellis.raster.resample.NearestNeighbor
-import geotrellis.vector.ProjectedExtent
-
+import geotrellis.vector.{Extent, ProjectedExtent}
 import org.scalatest._
-
 import java.io.File
+
+import cats.data.NonEmptyList
+import geotrellis.raster.io.geotiff.AutoHigherResolution
 
 class LayoutTileSourceSpec extends FunSpec with RasterMatchers {
   /** Function to get paths from the raster/data dir.  */
@@ -205,6 +206,28 @@ class LayoutTileSourceSpec extends FunSpec with RasterMatchers {
 
         layoutSource.source
       }
+    }
+  }
+
+  describe("should correctly work with LayoutTileSource") {
+    it("should properly read all its keys") {
+      val ld = LayoutDefinition(
+        Extent(-2.003750834278925E7, -2.003750834278925E7, 2.003750834278925E7, 2.003750834278925E7),
+        TileLayout(256, 256, 256, 256)
+      )
+
+      val rasterSources = List(
+        rasterGeoTiffPath("vlm/lc8-utm-1.tif"),
+        rasterGeoTiffPath("vlm/lc8-utm-2.tif")
+      ).map(GeoTiffRasterSource(_))
+
+      val mosaic = MosaicRasterSource.instance(NonEmptyList.fromListUnsafe(rasterSources), rasterSources.head.crs)
+
+      val layout = mosaic
+        .reproject(WebMercator)
+        .tileToLayout(ld, identity, NearestNeighbor, AutoHigherResolution)
+
+      layout.keys.foreach(layout.read)
     }
   }
 }

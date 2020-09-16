@@ -18,52 +18,33 @@ import sbt._
 
 object Version {
   val geotools    = "23.2"
-  val spire       = "0.13.0"
+  val spire       = "0.17.0-M1"
   val accumulo    = "1.9.3"
   val cassandra   = "3.7.2"
   val hbase       = "2.2.5"
   val geomesa     = "2.3.1"
   val geowave     = "0.9.3"
   val hadoop      = "2.8.5"
-  val spark       = "2.4.4"
+  val spark       = "3.0.1"
   val gdal        = "3.1.0"
   val gdalWarp    = "1.1.0"
 
-  val previousVersion = "3.4.0"
+  val previousVersion = "3.5.0"
 }
 import sbt.Keys._
 
 object Dependencies {
-  private def ver(for211: String, for212: String) = Def.setting {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 11)) => for211
-      case Some((2, 12)) => for212
-      case _ => sys.error("not good")
-    }
-  }
-
-  def monocle(module: String) = Def.setting {
-    "com.github.julien-truffaut" %% s"monocle-$module" % ver("1.5.1-cats", "2.1.0").value
-  }
 
   def cats(module: String) = Def.setting {
     module match {
-      case "core"   => "org.typelevel" %% s"cats-$module" % ver("1.6.1", "2.1.1").value
-      case "effect" => "org.typelevel" %% s"cats-$module" % ver("1.3.1", "2.1.3").value
+      case "core"   => "org.typelevel" %% s"cats-$module" % "2.1.1"
+      case "effect" => "org.typelevel" %% s"cats-$module" % "2.1.1"
     }
   }
 
-  def circe(module: String) = Def.setting {
-    "io.circe" %% s"circe-$module" % ver("0.11.1", "0.13.0").value
-  }
-
-  def fs2(module: String) = Def.setting {
-    "co.fs2" %% s"fs2-$module" % ver("1.0.5", "2.4.2").value
-  }
-
-  val scalaURI = Def.setting {
-    "io.lemonlabs" %% "scala-uri" % ver("1.4.10", "1.5.1").value
-  }
+  def monocle(module: String) = Def.setting { "com.github.julien-truffaut" %% s"monocle-$module" % "2.1.0" }
+  def circe(module: String) = Def.setting { "io.circe" %% s"circe-$module" % "0.13.0" }
+  def fs2(module: String) = Def.setting { "co.fs2" %% s"fs2-$module" % "2.4.2" }
 
   val sparkCore           = "org.apache.spark"           %% "spark-core"               % Version.spark
   val sparkSql            = "org.apache.spark"           %% "spark-sql"                % Version.spark
@@ -75,8 +56,8 @@ object Dependencies {
   val jts                 = "org.locationtech.jts"        % "jts-core"                 % "1.16.1"
   val proj4j              = "org.locationtech.proj4j"     % "proj4j"                   % "1.1.1"
   val openCSV             = "com.opencsv"                 % "opencsv"                  % "5.2"
-  val spire               = "org.spire-math"             %% "spire"                    % Version.spire
-  val spireMacro          = "org.spire-math"             %% "spire-macros"             % Version.spire
+  val spire               = "org.typelevel"              %% "spire"                    % Version.spire
+  val spireMacro          = "org.typelevel"              %% "spire-macros"             % Version.spire
   val apacheIO            = "commons-io"                  % "commons-io"               % "2.7"
   val apacheMath          = "org.apache.commons"          % "commons-math3"            % "3.6.1"
   val chronoscala         = "jp.ne.opt"                  %% "chronoscala"              % "0.3.2"
@@ -143,4 +124,6 @@ object Dependencies {
   val jacksonDatabind     = "com.fasterxml.jackson.core"    % "jackson-databind"         % "2.6.7"
   val jacksonAnnotations  = "com.fasterxml.jackson.core"    % "jackson-annotations"      % "2.6.7"
   val jacksonModuleScala  = "com.fasterxml.jackson.module" %% "jackson-module-scala"     % "2.6.7"
+
+  val scalaURI            = "io.lemonlabs"                 %% "scala-uri"                % "1.5.1"
 }

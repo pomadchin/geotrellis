@@ -11,3 +11,5 @@ addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.7.0")
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.34")
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.19")
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.9.8"
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.2.0")
+addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.0.0")

@@ -44,20 +44,35 @@ lazy val vectortile = project
   .dependsOn(vector)
   .settings(Settings.vectortile)
 
-lazy val vector = project
-  .dependsOn(proj4, util)
+lazy val vectorBase = crossProject(JSPlatform, JVMPlatform)
+  .in(file("vector"))
+  .dependsOn(proj4Base, utilBase)
   .settings(Settings.vector)
   .settings(
+    name := "vector",
     Test / unmanagedClasspath ++= (fullClasspath in (LocalProject("vector-testkit"), Compile)).value
   )
+
+lazy val vector = vectorBase.jvm
+lazy val vectorJS = vectorBase.js
 
 lazy val `vector-testkit` = project
   .dependsOn(vector % Provided)
   .settings(Settings.`vector-testkit`)
 
-lazy val proj4 = project
+lazy val proj4Base = crossProject(JSPlatform, JVMPlatform)
+  .in(file("proj4"))
   .settings(Settings.proj4)
+  .settings(
+    name := "proj4",
+    Test / fork := false,
+    Test / testOptions += Tests.Argument("-oDF"),
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % Test
+  )
   .settings(javacOptions ++= Seq("-encoding", "UTF-8"))
+
+lazy val proj4 = proj4Base.jvm
+lazy val proj4JS = proj4Base.js
 
 lazy val raster = project
   .dependsOn(util, macros, vector)
@@ -170,8 +185,17 @@ lazy val shapefile = project
   .dependsOn(raster, `raster-testkit` % Test)
   .settings(Settings.shapefile)
 
-lazy val util = project
+lazy val utilBase = crossProject(JSPlatform, JVMPlatform)
+  .in(file("util"))
+  .settings(
+    name := "util",
+    Test / testOptions += Tests.Argument("-oDF"),
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % Test
+  )
   .settings(Settings.util)
+
+lazy val util = utilBase.jvm
+lazy val utilJS = utilBase.js
 
 lazy val `doc-examples` = project
   .dependsOn(spark, `s3-spark`, `accumulo-spark`, `cassandra-spark`, `hbase-spark`, spark, `spark-testkit`, `spark-pipeline`)

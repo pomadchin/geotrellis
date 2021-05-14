@@ -16,6 +16,8 @@
 
 package geotrellis.store.index.zcurve
 
+import geotrellis.layer.{KeyBounds, SpaceTimeKey}
+import geotrellis.store.index.ZCurveKeyIndexMethod
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funspec.AnyFunSpec
 
@@ -42,6 +44,25 @@ class Z3Spec extends AnyFunSpec with Matchers {
       x should be (3)
       y should be (5)
       z should be (1)
+    }
+
+    it("Z3 index wide ranges computation") {
+      // start 2010-01-01
+      // end 2022-12-31
+      // at zoom level 12 (2^12)
+      val keyBounds = KeyBounds(
+        SpaceTimeKey(0, 0, 1262275200000L),
+        SpaceTimeKey(8192, 8192, 1672416000000L)
+      )
+
+      val index = ZCurveKeyIndexMethod.byDay().createIndex(keyBounds)
+
+      val res = index.indexRanges(
+        SpaceTimeKey(0, 0, 1262275200000L),
+        SpaceTimeKey(8192, 8192, 1672416000000L)
+      )
+
+      println(res)
     }
   }
 }

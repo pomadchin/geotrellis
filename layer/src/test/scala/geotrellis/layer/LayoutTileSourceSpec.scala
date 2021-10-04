@@ -32,7 +32,7 @@ import org.scalatest.funspec.AnyFunSpec
 
 class LayoutTileSourceSpec extends AnyFunSpec with RasterMatchers {
 
-  /** Function to get paths from the raster/data dir.  */
+  /** Function to get paths from the raster/data dir. */
   def rasterGeoTiffPath(name: String): String = {
     def baseDataPath = "raster/data"
     val path = s"$baseDataPath/$name"
@@ -60,7 +60,7 @@ class LayoutTileSourceSpec extends AnyFunSpec with RasterMatchers {
       .extentToBounds(rasterSource.extent)
       .coordsIter.toList
 
-    for ((col, row) <- keys ) {
+    for ((col, row) <- keys) {
       val key = SpatialKey(col, row)
       val re = RasterExtent(
         extent = layout.mapTransform.keyToExtent(key),
@@ -127,7 +127,7 @@ class LayoutTileSourceSpec extends AnyFunSpec with RasterMatchers {
 
     val layoutDefinition = tmsLevels(22)
 
-    for(c <- 1249656 to 1249658; r <- 1520655 to 1520658) {
+    for (c <- 1249656 to 1249658; r <- 1520655 to 1520658) {
       it(s"reading 22/$c/$r") {
         val result =
           GeoTiffRasterSource(path)
@@ -319,6 +319,24 @@ class LayoutTileSourceSpec extends AnyFunSpec with RasterMatchers {
           case (l, r) => throw new Exception(s"$l is not equal to $r")
         }
       }
+    }
+    // https://github.com/locationtech/geotrellis/issues/3420
+    it("should tile to layout AVIRIS") {
+      val tmsLevels = {
+        val scheme = ZoomedLayoutScheme(WebMercator, 256)
+        for (zoom <- 0 to 64) yield scheme.levelForZoom(zoom).layout
+      }.toArray
+
+      val z = 10
+
+      val layoutDefinition = tmsLevels(z)
+      
+      val uri = "s3://geotrellis-test/issue-1340-rf-platform/f180627t01p00r05rdn_e_sc01_ort_img_falsecolor-cog.tiff"
+
+      val rs = RasterSource(uri).reproject(WebMercator, method = NearestNeighbor)
+      val tl = rs.tileToLayout(layoutDefinition)
+
+      tl.keys.toList.map(tl.read)
     }
   }
 }

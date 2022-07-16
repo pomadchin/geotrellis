@@ -24,7 +24,7 @@ import org.apache.spark.SparkConf
 import org.scalatest.Suite
 
 trait AccumuloTestEnvironment extends TestEnvironment { self: Suite =>
-  override def setKryoRegistrator(conf: SparkConf) =
+  override def setKryoRegistrator(conf: SparkConf): Unit =
     conf.set("spark.kryo.registrator", classOf[KryoRegistrator].getName)
         .set("spark.kryo.registrationRequired", "false")
 }

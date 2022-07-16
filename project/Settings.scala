@@ -200,6 +200,7 @@ object Settings {
       hadoopClient % Provided,
       apacheSpark("core").value % Provided,
       apacheSpark("sql").value % Test,
+      accumuloMiniCluster % Test,
       scalatest % Test
     ),
     console / initialCommands :=
@@ -212,7 +213,7 @@ object Settings {
       import geotrellis.spark._
       import geotrellis.spark.store.accumulo._
       """
-  ) ++ commonSettings ++ noForkInTests
+  ) ++ commonSettings ++ forkInTests
 
   lazy val bench = Seq(
     libraryDependencies += sl4jnop,

@@ -20,11 +20,30 @@ import geotrellis.store._
 import geotrellis.store.accumulo._
 import geotrellis.spark.store._
 import org.apache.accumulo.core.client.security.tokens.PasswordToken
+import org.scalatest.BeforeAndAfterAll
+import org.apache.accumulo.minicluster.MiniAccumuloCluster
 
-class AccumuloAttributeStoreSpec extends AttributeStoreSpec {
-  val accumulo = AccumuloInstance(
-    instanceName = "fake",
-    zookeeper = "localhost",
+import com.google.common.io.Files
+
+class AccumuloAttributeStoreSpec extends AttributeStoreSpec with BeforeAndAfterAll {
+  var miniAccumuloCluster: MiniAccumuloCluster = _
+
+  override def beforeAll(): Unit = {
+    val tempDir = Files.createTempDir
+    tempDir.deleteOnExit()
+    miniAccumuloCluster = new MiniAccumuloCluster(tempDir, "")
+
+    Thread.sleep(3000)
+
+    println(miniAccumuloCluster.getInstanceName)
+    println(miniAccumuloCluster.getZooKeepers)
+  }
+
+  override def afterAll(): Unit = miniAccumuloCluster.stop()
+
+  lazy val accumulo = AccumuloInstance(
+    instanceName = miniAccumuloCluster.getInstanceName,
+    zookeeper = miniAccumuloCluster.getZooKeepers,
     user = "root",
     token = new PasswordToken("")
   )

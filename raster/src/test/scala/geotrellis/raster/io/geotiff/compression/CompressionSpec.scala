@@ -19,6 +19,8 @@ package geotrellis.raster.io.geotiff.compression
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funspec.AnyFunSpec
 
+import scala.util.Random
+
 class CompressionSpec extends AnyFunSpec with Matchers {
   describe("DeflateCompression") {
     (-1 to 9).foreach { level =>
@@ -42,6 +44,19 @@ class CompressionSpec extends AnyFunSpec with Matchers {
         val decompressor = compressor.createDecompressor()
         val decompressed = decompressor.decompress(compressed, 0)
         decompressed should be(segment)
+      }
+    }
+
+    Seq(0, -1, 9).foreach { level =>
+      it(s"should not truncate incompressible segments at the level $level") {
+        Seq(16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024).foreach { size =>
+          val segment = Array.ofDim[Byte](size)
+          new Random(size).nextBytes(segment)
+          val compressor = new DeflateCompression(level).createCompressor(1)
+          val compressed = compressor.compress(segment, 0)
+          val decompressed = compressor.createDecompressor().decompress(compressed, 0)
+          decompressed should be(segment)
+        }
       }
     }
   }

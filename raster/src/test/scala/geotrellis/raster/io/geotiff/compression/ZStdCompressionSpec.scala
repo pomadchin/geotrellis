@@ -16,8 +16,12 @@
 
 package geotrellis.raster.io.geotiff.compression
 
+import com.github.luben.zstd.ZstdOutputStream
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funspec.AnyFunSpec
+
+import java.io.ByteArrayOutputStream
+import scala.util.Random
 
 class ZStdCompressionSpec extends AnyFunSpec with Matchers {
   describe("ZStdCompression") {
@@ -43,6 +47,24 @@ class ZStdCompressionSpec extends AnyFunSpec with Matchers {
         val decompressed = decompressor.decompress(compressed, 0)
         decompressed should be(segment)
       }
+    }
+
+    it("should decompress streamed frames without the content size") {
+      val segment = Array.ofDim[Byte](256 * 1024)
+      new Random(42).nextBytes(segment)
+      // segments written by the previous stream based compressor
+      val baos = new ByteArrayOutputStream()
+      val zos = new ZstdOutputStream(baos, 3)
+      zos.write(segment)
+      zos.close()
+      ZStdCompression.createDecompressor.decompress(baos.toByteArray, 0) should be(segment)
+    }
+
+    it("should round trip large incompressible segments") {
+      val segment = Array.ofDim[Byte](1024 * 1024)
+      new Random(42).nextBytes(segment)
+      val compressor = ZStdCompression.createCompressor(1)
+      compressor.createDecompressor().decompress(compressor.compress(segment, 0), 0) should be(segment)
     }
   }
 }

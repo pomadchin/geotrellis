@@ -17,8 +17,9 @@
 package geotrellis.util
 
 import java.io.*
+import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.channels.FileChannel.MapMode.*
+import java.nio.file.StandardOpenOption
 
 /**
  * This class extends [[RangeReader]] by reading chunks from a given local path. This
@@ -31,24 +32,13 @@ class FileRangeReader(val file: File) extends RangeReader {
   val totalLength: Long = file.length
 
   def readClippedRange(start: Long, length: Int): Array[Byte] = {
-    val inputStream: FileInputStream = new FileInputStream(file)
-    val channel: FileChannel =  inputStream.getChannel
-
-    val buffer = channel.map(READ_ONLY, start, length)
-
-    var i = 0
-
-    val data = Array.ofDim[Byte](buffer.capacity)
-
-    while(buffer.hasRemaining()) {
-      val n = math.min(buffer.remaining(), (1<<18))
-      buffer.get(data, i, n)
-      i += n
-    }
-
-    channel.close()
-    inputStream.close()
-    data
+    // read into the heap directly: a mapped buffer would only be unmapped once GC collects it
+    val channel = FileChannel.open(file.toPath, StandardOpenOption.READ)
+    try {
+      val data = Array.ofDim[Byte](length)
+      Filesystem.readFully(channel, ByteBuffer.wrap(data), start)
+      data
+    } finally channel.close()
   }
 }
 

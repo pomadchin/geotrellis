@@ -19,7 +19,6 @@ package geotrellis.raster.render.jpg
 import geotrellis.raster.*
 
 import java.io.{File, ByteArrayOutputStream}
-import java.nio.file.Files
 import javax.imageio.*
 import javax.imageio.plugins.jpeg.*
 import javax.imageio.stream.*
@@ -43,33 +42,29 @@ case class JpgEncoder(settings: Settings = Settings.DEFAULT) {
 
     // Write to provided output stream
     val writer: ImageWriter = ImageIO.getImageWritersByFormatName("jpg").next()
-    writer.setOutput(os)
-    writer.write(null, new IIOImage(img, null, null), this.writeParams)
-    writer.dispose()
+    try {
+      writer.setOutput(os)
+      writer.write(null, new IIOImage(img, null, null), this.writeParams)
+    } finally writer.dispose()
   }
 
   def writeByteArray(raster: Tile): Array[Byte] = {
     val baos = new ByteArrayOutputStream
-    val cacheDir = Files.createTempDirectory("foobar").toFile()
-    cacheDir.deleteOnExit()
-    val fcios = new FileCacheImageOutputStream(baos, cacheDir)
-
-    writeOutputStream(fcios, raster)
-    fcios.flush()
-    baos.flush()
-
-    val bytes = baos.toByteArray
-    fcios.close()
-    baos.close()
-    cacheDir.delete()
-    bytes
+    // cache in memory: a file cache costs a temp dir per call and the deleteOnExit list never shrinks
+    val mcios = new MemoryCacheImageOutputStream(baos)
+    try {
+      writeOutputStream(mcios, raster)
+      mcios.flush()
+    } finally mcios.close()
+    baos.toByteArray
   }
 
   def writePath(path: String, raster: Tile): Unit = {
     val fios = new FileImageOutputStream(new File(path))
-    writeOutputStream(fios, raster)
-    fios.flush()
-    fios.close()
+    try {
+      writeOutputStream(fios, raster)
+      fios.flush()
+    } finally fios.close()
   }
 }
 

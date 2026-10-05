@@ -27,6 +27,7 @@ import java.awt.image.DataBufferByte
 import java.io.ByteArrayInputStream
 import javax.imageio.{ImageIO, IIOException, ImageReader}
 import javax.imageio.plugins.jpeg.JPEGImageReadParam
+import javax.imageio.stream.{ImageInputStream, MemoryCacheImageInputStream}
 
 object JpegDecompressor {
   def apply(tiffTags: TiffTags): JpegDecompressor =
@@ -55,24 +56,28 @@ class JpegDecompressor(tiffTags: TiffTags) extends Decompressor {
       throw new IIOException("Could not instantiate JPEGImageReader")
     }
     val reader = readers.next()
-    val tablesSource = ImageIO.createImageInputStream(new ByteArrayInputStream(jpegTables))
-    val imageSource = inputBytes.map { ib =>
-      ImageIO.createImageInputStream(new ByteArrayInputStream(ib))
-    }
+    var tablesSource: ImageInputStream = null
+    var imageSource: ImageInputStream = null
 
     try {
+      // cache in memory: ImageIO.createImageInputStream would use a temp file per stream by default
+      tablesSource = new MemoryCacheImageInputStream(new ByteArrayInputStream(jpegTables))
+
       // This initializes the tables and other internal settings for the reader,
       // and is actually a feature of JPEG, see abbreviated streams:
       // http://docs.oracle.com/javase/6/docs/api/javax/imageio/metadata/doc-files/jpeg_metadata.html#abbrev
       reader.setInput(tablesSource)
       reader.getStreamMetadata()
 
-      imageSource.foreach(reader.setInput(_))
+      inputBytes.foreach { ib =>
+        imageSource = new MemoryCacheImageInputStream(new ByteArrayInputStream(ib))
+        reader.setInput(imageSource)
+      }
       fn(reader)
 
     } finally {
-      tablesSource.close()
-      imageSource.foreach(_.close())
+      if (tablesSource != null) tablesSource.close()
+      if (imageSource != null) imageSource.close()
       reader.dispose()
     }
   }

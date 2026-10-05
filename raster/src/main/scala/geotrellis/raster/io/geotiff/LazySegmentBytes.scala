@@ -109,7 +109,8 @@ class LazySegmentBytes(
       .flatMap(chunk => readChunk(chunk))
   }
 
-  private[geotrellis] def getBytes(offset: Long, length: Long): Array[Byte] = {
+  // the reader is stateful (position + read), so concurrent segment reads must not interleave
+  private[geotrellis] def getBytes(offset: Long, length: Long): Array[Byte] = byteReader.synchronized {
     byteReader.position(offset)
     byteReader.getBytes(length.toInt)
   }

@@ -29,16 +29,17 @@ trait GeoTiffSegmentCollection {
 
   def decompressGeoTiffSegment: (Int, Array[Byte]) => T
 
-  // Cached last segment
-  private var _lastSegment: T = null
-  private var _lastSegmentIndex: Int = -1
+  // Cached last segment, index and segment are published together so that concurrent readers never mix them up
+  @volatile private var _lastSegment: (Int, T) = null
 
   def getSegment(i: Int): T = {
-    if(i != _lastSegmentIndex) {
-      _lastSegment = decompressGeoTiffSegment(i, segmentBytes.getSegment(i))
-      _lastSegmentIndex = i
+    val last = _lastSegment
+    if (last != null && last._1 == i) last._2
+    else {
+      val segment = decompressGeoTiffSegment(i, segmentBytes.getSegment(i))
+      _lastSegment = (i, segment)
+      segment
     }
-    _lastSegment
   }
 
   def getSegments(ids: Iterable[Int]): Iterator[(Int, T)] = {

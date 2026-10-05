@@ -18,6 +18,7 @@ package geotrellis.util
 
 import java.io.*
 import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.channels.FileChannel.MapMode.*
 import java.nio.charset.StandardCharsets
 import java.nio.file.*
@@ -38,13 +39,8 @@ object Filesystem {
   def toMappedByteBuffer(path: String): ByteBuffer = {
     val f = new File(path)
     val fis = new FileInputStream(f)
-    val size = f.length.toInt
-    val channel = fis.getChannel
-    val buffer = channel.map(READ_ONLY, 0, size)
-    channel.close()
-    fis.close()
-
-    buffer
+    try fis.getChannel.map(READ_ONLY, 0, f.length.toInt)
+    finally fis.close()
   }
 
   /**
@@ -54,20 +50,9 @@ object Filesystem {
     * @param   bs   The block size; The file will be read in chunks of this size
     * @return       An array of bytes containing the file contents
     */
-  def slurp(path: String, bs: Int = (1<<18)): Array[Byte] = {
-    val buffer = toMappedByteBuffer(path)
-
-    // read 256KiB (2^18 bytes) at a time out of the buffer into our array
-    var i = 0
-    val data = Array.ofDim[Byte](buffer.capacity)
-    while(buffer.hasRemaining()) {
-      val n = math.min(buffer.remaining(), bs)
-      buffer.get(data, i, n)
-      i += n
-    }
-
-    data
-  }
+  def slurp(path: String, bs: Int = (1<<18)): Array[Byte] =
+    // read into the heap directly: a mapped buffer would only be unmapped once GC collects it
+    Files.readAllBytes(Paths.get(path))
 
   /**
     * Make a contiguous chunk of a file available in the given array.
@@ -78,16 +63,19 @@ object Filesystem {
     * @param size       The size of the contiguous region
     */
   def mapToByteArray(path: String, data: Array[Byte], startIndex: Int, size: Int): Unit = {
-    val f = new File(path)
-    val fis = new FileInputStream(f)
-    val buffer =
-      try {
-        val channel = fis.getChannel
-        channel.map(READ_ONLY, startIndex, size)
-      } finally {
-        fis.close
-      }
-    buffer.get(data, startIndex, size)
+    val channel = FileChannel.open(Paths.get(path), StandardOpenOption.READ)
+    try readFully(channel, ByteBuffer.wrap(data, startIndex, size), startIndex)
+    finally channel.close()
+  }
+
+  /** Reads from the channel at the given position until the buffer is full or EOF is reached. */
+  private[geotrellis] def readFully(channel: FileChannel, buffer: ByteBuffer, position: Long): Unit = {
+    var pos = position
+    var n = 0
+    while (buffer.hasRemaining && n >= 0) {
+      n = channel.read(buffer, pos)
+      if (n > 0) pos += n
+    }
   }
 
   /**

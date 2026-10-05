@@ -18,10 +18,11 @@ package geotrellis.raster.io.geotiff.compression
 
 import geotrellis.raster.io.geotiff.tags.codes.CompressionType.*
 
-import com.github.luben.zstd.{ZstdInputStream, ZstdOutputStream}
+import com.github.luben.zstd.{Zstd, ZstdInputStream}
 import org.apache.commons.io.IOUtils
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.ByteArrayInputStream
+import scala.util.Using
 
 case class ZStdCompression(level: Int = 3) extends Compression {
   def createCompressor(segmentCount: Int): Compressor =
@@ -39,12 +40,8 @@ class ZStdCompressor(segmentCount: Int, level: Int) extends Compressor {
 
   def compress(segment: Array[Byte], segmentIndex: Int): Array[Byte] = {
     segmentSizes(segmentIndex) = segment.size
-
-    val outputStream = new ByteArrayOutputStream()
-    val compressorOutputStream = new ZstdOutputStream(outputStream, level)
-    IOUtils.copyLarge(new ByteArrayInputStream(segment), compressorOutputStream)
-    compressorOutputStream.close()
-    outputStream.toByteArray
+    // a single frame with the content size set, so it can be decompressed in one shot
+    Zstd.compress(segment, level)
   }
 
   def createDecompressor(): Decompressor =
@@ -55,12 +52,10 @@ class ZStdDecompressor extends Decompressor {
   def code = ZStdCoded
 
   def decompress(segment: Array[Byte], segmentIndex: Int): Array[Byte] = {
-    val outputStream = new ByteArrayOutputStream()
-    val stream = new ByteArrayInputStream(segment)
-    val compressorInputStream = new ZstdInputStream(stream)
-    IOUtils.copyLarge(compressorInputStream, outputStream)
-    compressorInputStream.close()
-    outputStream.toByteArray
+    val size = Zstd.getFrameContentSize(segment)
+    if (size >= 0 && size <= Int.MaxValue) Zstd.decompress(segment, size.toInt)
+    // the content size is unknown for streamed frames: close the stream to free its native context
+    else Using.resource(new ZstdInputStream(new ByteArrayInputStream(segment)))(IOUtils.toByteArray)
   }
 }
 

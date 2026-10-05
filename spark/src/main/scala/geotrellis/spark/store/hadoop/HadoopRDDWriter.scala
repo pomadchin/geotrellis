@@ -72,10 +72,10 @@ object HadoopRDDWriter {
     def write(key: BigIntWritable, value: BytesWritable): Unit = {
       val recordSize = 8 + value.getLength
       if (writer == null) {
-        writer = getWriter(BigInt(key.getBytes))
+        writer = getWriter(BigInt(key.copyBytes))
       } else if (bytesRemaining - recordSize < 0) {
         writer.close()
-        writer = getWriter(BigInt(key.getBytes))
+        writer = getWriter(BigInt(key.copyBytes))
       }
       writer.append(key, value)
       bytesRemaining -= recordSize
@@ -114,7 +114,7 @@ object HadoopRDDWriter {
       val k = new BigIntWritable()
       val v = new BytesWritable()
       var index: BigInt = BigInt(-1)
-      while (reader.next(k, v)) { index = BigInt(new java.math.BigInteger(k.getBytes)) }
+      while (reader.next(k, v)) { index = BigInt(k.copyBytes) }
       reader.close
       index
     }

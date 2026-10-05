@@ -27,17 +27,7 @@ case class DeflateCompression(level: Int = Deflater.DEFAULT_COMPRESSION) extends
       private val segmentSizes = Array.ofDim[Int](segmentCount)
       def compress(segment: Array[Byte], segmentIndex: Int): Array[Byte] = {
         segmentSizes(segmentIndex) = segment.size
-
-        val deflater = new Deflater(level)
-        // take into account extra 10 leading bytes header, in case of 0 compression level it is important
-        val tmp = Array.ofDim[Byte](segment.length + 10)
-        deflater.setInput(segment, 0, segment.length)
-        deflater.finish()
-        val compressedSize = deflater.deflate(tmp)
-        deflater.end()
-        val result = Array.ofDim[Byte](compressedSize)
-        System.arraycopy(tmp, 0, result, 0, compressedSize)
-        result
+        DeflateCompression.deflate(segment, level)
       }
 
       def createDecompressor(): Decompressor =
@@ -48,30 +38,47 @@ case class DeflateCompression(level: Int = Deflater.DEFAULT_COMPRESSION) extends
     new DeflateDecompressor(segmentSizes)
 }
 
-object DeflateCompression extends DeflateCompression(Deflater.DEFAULT_COMPRESSION)
+object DeflateCompression extends DeflateCompression(Deflater.DEFAULT_COMPRESSION) {
+  /** zlib's compressBound: the max deflated size, so a single pass is enough */
+  private def compressBound(length: Int): Int =
+    length + (length >> 12) + (length >> 14) + (length >> 25) + 13
+
+  private[compression] def deflate(segment: Array[Byte], level: Int): Array[Byte] = {
+    val deflater = new Deflater(level)
+    try {
+      deflater.setInput(segment, 0, segment.length)
+      deflater.finish()
+      var result = Array.ofDim[Byte](compressBound(segment.length))
+      var length = 0
+      // keep deflating until the stream is finished, otherwise incompressible segments get truncated
+      while (!deflater.finished()) {
+        if (length == result.length) result = java.util.Arrays.copyOf(result, result.length * 2)
+        length += deflater.deflate(result, length, result.length - length)
+      }
+      if (length == result.length) result else java.util.Arrays.copyOf(result, length)
+    } finally deflater.end()
+  }
+
+  private[compression] def inflate(segment: Array[Byte], size: Int): Array[Byte] = {
+    val inflater = new Inflater()
+    try {
+      inflater.setInput(segment, 0, segment.length)
+      val result = Array.ofDim[Byte](size)
+      var length = 0
+      // a truncated segment stops early and leaves the tail zero filled
+      while (length < size && !inflater.finished() && !inflater.needsInput() && !inflater.needsDictionary())
+        length += inflater.inflate(result, length, size - length)
+      result
+    } finally inflater.end()
+  }
+}
 
 class DeflateDecompressor(segmentSizes: Array[Int]) extends Decompressor {
   def code = ZLibCoded
 
-  def compress(segment: Array[Byte], level: Int = Deflater.DEFAULT_COMPRESSION): Array[Byte] = {
-    val deflater = new Deflater(level)
-    // take into account extra 10 leading bytes header, in case of 0 compression level it is important
-    val tmp = Array.ofDim[Byte](segment.length + 10)
-    deflater.setInput(segment, 0, segment.length)
-    val compressedDataLength = deflater.deflate(tmp)
-    deflater.end()
-    java.util.Arrays.copyOf(tmp, compressedDataLength)
-  }
+  def compress(segment: Array[Byte], level: Int = Deflater.DEFAULT_COMPRESSION): Array[Byte] =
+    DeflateCompression.deflate(segment, level)
 
-  def decompress(segment: Array[Byte], segmentIndex: Int): Array[Byte] = {
-    val inflater = new Inflater()
-    inflater.setInput(segment, 0, segment.length)
-
-    val resultSize = segmentSizes(segmentIndex)
-    val result = new Array[Byte](resultSize)
-    inflater.inflate(result)
-    inflater.reset()
-    inflater.end()
-    result
-  }
+  def decompress(segment: Array[Byte], segmentIndex: Int): Array[Byte] =
+    DeflateCompression.inflate(segment, segmentSizes(segmentIndex))
 }

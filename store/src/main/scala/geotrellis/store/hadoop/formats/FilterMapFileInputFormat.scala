@@ -63,7 +63,7 @@ object FilterMapFileInputFormat {
           try {
             in.next(minKey)
           } finally { in.close() }
-          BigInt(minKey.getBytes)
+          BigInt(minKey.copyBytes)
       }
     }
 
@@ -210,7 +210,7 @@ class FilterMapFileInputFormat() extends FileInputFormat[BigIntWritable, BytesWr
         while(!break) {
           if(seek) {
             seek = false
-            if(key == null || BigInt(key.getBytes) < BigInt(seekKey.getBytes)) {
+            if(key == null || BigInt(key.copyBytes) < BigInt(seekKey.copyBytes)) {
               // We are seeking to the beginning of a new range.
               key = mapFile.getClosest(seekKey, nextValue).asInstanceOf[BigIntWritable]
               if(key == null) {

@@ -140,36 +140,40 @@ case class PngEncoder(settings: Settings) {
     // allocate a data chunk for our pixel data
     val cIDAT = new Chunk(IDAT)
 
-    // allocate a byte buffer
-    val bb = createByteBuffer(raster)
+    // the Deflater is passed in explicitly, so the stream won't end it: do it here to free native zlib memory
+    val deflater = new Deflater(Deflater.BEST_SPEED)
+    try {
+      // wrap the chunk's output stream to apply the DEFLATE compression
+      val dfos = new DeflaterOutputStream(cIDAT.cos, deflater)
 
-    // wrap the chunk's output stream to apply the DEFLATE compression
-    val dfos = new DeflaterOutputStream(cIDAT.cos, new Deflater(Deflater.BEST_SPEED))
+      // allocate a byte buffer
+      val bb = createByteBuffer(raster)
 
-    val byteWidth = cols * DEPTH
+      val byteWidth = cols * DEPTH
 
-    // allocate a buffer for one row's worth of bytes
-    var currLine = Array.ofDim[Byte](byteWidth)
+      // allocate a buffer for one row's worth of bytes
+      var currLine = Array.ofDim[Byte](byteWidth)
 
-    var yspan = 0
+      var yspan = 0
 
-    // loop over lines of the image. each line will contain 'cols' pixels.
-    while (yspan < size) {
-      bb.position(yspan * DEPTH)
-      bb.get(currLine)
+      // loop over lines of the image. each line will contain 'cols' pixels.
+      while (yspan < size) {
+        bb.position(yspan * DEPTH)
+        bb.get(currLine)
 
-      // write the "filter type" for this line, followed by the line itself.
-      dfos.write(FILTER)
-      dfos.write(currLine)
+        // write the "filter type" for this line, followed by the line itself.
+        dfos.write(FILTER)
+        dfos.write(currLine)
 
-      // proceed to the next row.
-      yspan += cols
-    }
+        // proceed to the next row.
+        yspan += cols
+      }
 
-    // now that we've written all the data, actually do the DEFLATE compression
-    // and write the result to our output stream.
-    dfos.finish()
-    cIDAT.writeTo(dos)
+      // now that we've written all the data, actually do the DEFLATE compression
+      // and write the result to our output stream.
+      dfos.finish()
+      cIDAT.writeTo(dos)
+    } finally deflater.end()
   }
 
   def writePixelDataPaeth(dos: DataOutputStream, raster: Tile): Unit = {
@@ -181,77 +185,81 @@ case class PngEncoder(settings: Settings) {
     // allocate a data chunk for our pixel data
     val cIDAT = new Chunk(IDAT)
 
-    var j = 0
+    // the Deflater is passed in explicitly, so the stream won't end it: do it here to free native zlib memory
+    val deflater = new Deflater(Deflater.BEST_SPEED)
+    try {
+      // wrap the chunk's output stream to apply the DEFLATE compression
+      val dfos = new DeflaterOutputStream(cIDAT.cos, deflater)
 
-    // allocate a byte buffer
-    val bb = createByteBuffer(raster)
+      var j = 0
 
-    // wrap the chunk's output stream to apply the DEFLATE compression
-    val dfos = new DeflaterOutputStream(cIDAT.cos, new Deflater(Deflater.BEST_SPEED))
+      // allocate a byte buffer
+      val bb = createByteBuffer(raster)
 
-    val byteWidth = cols * DEPTH
+      val byteWidth = cols * DEPTH
 
-    // allocate a buffer for one row's worth of bytes
-    val lineOut = Array.ofDim[Byte](byteWidth)
-    var prevLine = Array.ofDim[Byte](byteWidth)
-    var currLine = Array.ofDim[Byte](byteWidth)
-    var tmp: Array[Byte] = null
+      // allocate a buffer for one row's worth of bytes
+      val lineOut = Array.ofDim[Byte](byteWidth)
+      var prevLine = Array.ofDim[Byte](byteWidth)
+      var currLine = Array.ofDim[Byte](byteWidth)
+      var tmp: Array[Byte] = null
 
-    var yspan = 0
+      var yspan = 0
 
-    // loop over lines of the image. each line will contain 'cols' pixels.
-    while (yspan < size) {
-      bb.position(yspan * DEPTH)
-      bb.get(currLine)
+      // loop over lines of the image. each line will contain 'cols' pixels.
+      while (yspan < size) {
+        bb.position(yspan * DEPTH)
+        bb.get(currLine)
 
-      j = 0
-      while (j < DEPTH) {
-        // for the first DEPTH bytes, there is no left neighbor so 'c' is
-        // always the neighbor above (from the previous line).
-        lineOut(j) = byte(currLine(j) - prevLine(j))
-        j += 1
+        j = 0
+        while (j < DEPTH) {
+          // for the first DEPTH bytes, there is no left neighbor so 'c' is
+          // always the neighbor above (from the previous line).
+          lineOut(j) = byte(currLine(j) - prevLine(j))
+          j += 1
+        }
+
+        while (j < byteWidth) {
+          // the names a, b, c and p are actually used in the PNG spec, so we
+          // use them here. they correspond to three neighbors.
+          val a: Int = currLine(j - DEPTH) & 0xff // left
+          val b: Int = prevLine(j) & 0xff // above
+          var c: Int = prevLine(j - DEPTH) & 0xff // above + left
+
+          // find the distance of a, b, c from "p" (p = a + b - c)
+          var pa: Int = b - c
+          var pb: Int = a - c
+          var pc: Int = pa + pb
+          if (pa < 0) pa = -pa
+          if (pb < 0) pb = -pb
+          if (pc < 0) pc = -pc
+
+          // find closest neighbor; assign that neighbor's value to 'c'
+          if (pa <= pb && pa <= pc) c = a else if(pb <= pc) c = b
+
+          // apply PAETH: store the current byte's value minus c's value
+          lineOut(j) = byte(currLine(j) - c)
+          j += 1
+        }
+
+        // write the "filter type" for this line, followed by the line itself.
+        dfos.write(FILTER)
+        dfos.write(lineOut)
+
+        // swap the buffers
+        tmp = prevLine
+        prevLine = currLine
+        currLine = tmp
+
+        // proceed to the next row.
+        yspan += cols
       }
 
-      while (j < byteWidth) {
-        // the names a, b, c and p are actually used in the PNG spec, so we
-        // use them here. they correspond to three neighbors.
-        val a: Int = currLine(j - DEPTH) & 0xff // left
-        val b: Int = prevLine(j) & 0xff // above
-        var c: Int = prevLine(j - DEPTH) & 0xff // above + left
-
-        // find the distance of a, b, c from "p" (p = a + b - c)
-        var pa: Int = b - c
-        var pb: Int = a - c
-        var pc: Int = pa + pb
-        if (pa < 0) pa = -pa
-        if (pb < 0) pb = -pb
-        if (pc < 0) pc = -pc
-
-        // find closest neighbor; assign that neighbor's value to 'c'
-        if (pa <= pb && pa <= pc) c = a else if(pb <= pc) c = b
-
-        // apply PAETH: store the current byte's value minus c's value
-        lineOut(j) = byte(currLine(j) - c)
-        j += 1
-      }
-
-      // write the "filter type" for this line, followed by the line itself.
-      dfos.write(FILTER)
-      dfos.write(lineOut)
-
-      // swap the buffers
-      tmp = prevLine
-      prevLine = currLine
-      currLine = tmp
-
-      // proceed to the next row.
-      yspan += cols
-    }
-
-    // now that we've written all the data, actually do the DEFLATE compression
-    // and write the result to our output stream.
-    dfos.finish()
-    cIDAT.writeTo(dos)
+      // now that we've written all the data, actually do the DEFLATE compression
+      // and write the result to our output stream.
+      dfos.finish()
+      cIDAT.writeTo(dos)
+    } finally deflater.end()
   }
 
   // signal the end of the PNG data
@@ -286,7 +294,6 @@ case class PngEncoder(settings: Settings) {
 
   def writePath(path: String, raster: Tile): Unit = {
     val fos = new FileOutputStream(new File(path))
-    writeOutputStream(fos, raster)
-    fos.close()
+    try writeOutputStream(fos, raster) finally fos.close()
   }
 }
